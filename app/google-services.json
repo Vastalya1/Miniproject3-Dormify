@@ -1,0 +1,38 @@
+{
+  "project_info": {
+    "project_number": "582244501761",
+    "project_id": "miniproject3-dormify",
+    "storage_bucket": "miniproject3-dormify.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582244501761:android:88b15bef650c8372bdf300",
+        "android_client_info": {
+          "package_name": "com.example.mp3"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "582244501761-0s43s195m62d5uf9fr8fr7765h4885el.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mp3",
+            "certificate_hash": "2620aa2d30eb91bfebf917705b74865a2a547c71"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-EaCzrFlhIf4XUkRwLl64g1bsRlsezZo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
