@@ -888,6 +888,7 @@ fun Visuals() {
             Property("Luxury Apartment", listOf("John Doe", "Jane Smith"), listOf("123-456-7890", "987-654-3210")),
             Property("Cozy PG", listOf("Alice Johnson"), listOf("111-222-3333")),
             Property("Beachside Hostel", listOf("Bob Brown", "Charlie White"), listOf("555-555-5555", "444-444-4444"))
+            //comment
         )
 
         OwnerHomeScreen()
