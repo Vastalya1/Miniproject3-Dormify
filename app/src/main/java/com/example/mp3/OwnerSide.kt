@@ -1,6 +1,8 @@
 package com.example.mp3
 
+//import com.google.common.reflect.TypeToken
 import android.app.DatePickerDialog
+import android.content.Context
 import android.widget.DatePicker
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -43,6 +46,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -50,6 +54,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.mp3.ui.theme.MP3Theme
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.io.InputStreamReader
 import java.util.Calendar
 
 data class Property(
@@ -58,7 +66,13 @@ data class Property(
     val contactInfo: List<String> // Add contact info for interested people
 )
 
-
+// Function to load countries from the JSON file
+suspend fun loadCountries(context: Context): List<String> {
+    val inputStream = context.assets.open("countries.json")
+    val reader = InputStreamReader(inputStream)
+    val countryListType = object : TypeToken<List<String>>() {}.type
+    return Gson().fromJson(reader, countryListType)
+}
 
 @Composable
 fun RentalAppNavHost(properties: List<Property>) {
@@ -82,6 +96,7 @@ fun RentalAppNavHost(properties: List<Property>) {
             }
         }
         composable("ListProperty") { ListProperty(navController) }
+        composable("Address") { Address(navController) }
     }
 }
 
@@ -98,7 +113,9 @@ fun RentalAppScreen(
     ) {
         Button(
             onClick = onAddPropertyClick,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
         ) {
             Text("Add Property")
         }
@@ -514,7 +531,7 @@ fun ListProperty(navController: NavController){
             }
         }
 
-        Button(onClick = { /*TODO*/ },
+        Button(onClick = { navController.navigate("Address") },
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth()
@@ -527,8 +544,151 @@ fun ListProperty(navController: NavController){
                     shape = RoundedCornerShape(8.dp)
                 )
         ) {
-            Text("Post Property")
+            Text("Next")
         }
     }
+
+}
+
+@Composable
+fun Address(navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // State variables for address inputs
+        var addressLine1 by remember { mutableStateOf("") }
+        var addressLine2 by remember { mutableStateOf("") }
+        var city by remember { mutableStateOf("") }
+        var state by remember { mutableStateOf("") }
+        var pinCode by remember { mutableStateOf("") }
+        var country by remember { mutableStateOf("") }
+
+        // Focus manager to control focus
+        val focusManager = LocalFocusManager.current
+
+        Text(text = "Address",
+        fontSize = 20.sp,
+        fontWeight = FontWeight.Bold,
+        )
+        // Address input fields
+        OutlinedTextField(
+            value = addressLine1,
+            onValueChange = { addressLine1 = it },
+            label = { Text("Address Line 1") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Next // Set the action to "Next"
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = {
+                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+                }
+            )
+        )
+
+        OutlinedTextField(
+            value = addressLine2,
+            onValueChange = { addressLine2 = it },
+            label = { Text("Address Line 2") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Next // Set the action to "Next"
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = {
+                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+                }
+            )
+        )
+
+        OutlinedTextField(
+            value = city,
+            onValueChange = { city = it },
+            label = { Text("City") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Next // Set the action to "Next"
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = {
+                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+                }
+            )
+        )
+
+        OutlinedTextField(
+            value = state,
+            onValueChange = { state = it },
+            label = { Text("State") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Next // Set the action to "Next"
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = {
+                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+                }
+            )
+        )
+
+        OutlinedTextField(
+            value = pinCode,
+            onValueChange = { pinCode = it },
+            label = { Text("Pin Code") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Next // Set the action to "Next"
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = {
+                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+                }
+            )
+        )
+
+        // Text field for country input
+        OutlinedTextField(
+            value = country,
+            onValueChange = { country = it },
+            label = { Text("Country") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Done // Set the action to "Done" for the last field
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    focusManager.clearFocus() // Dismiss the keyboard when done
+                }
+            )
+        )
+
+        // Next button
+        Button(
+            onClick = {
+                navController.navigate("") // Replace "nextScreen" with your actual route
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp) // Add some padding for spacing
+        ) {
+            Text("Next")
+        }
+        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun Visuals() {
+    MP3Theme {
+        val navController=rememberNavController()
+        Address(navController)
+    }
+
 
 }
