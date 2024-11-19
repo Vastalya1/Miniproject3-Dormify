@@ -67,6 +67,13 @@
             android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
 
         </activity>
+
+        <activity android:name=".UserSignUpActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+
+        </activity>
     </application>
 
 </manifest>

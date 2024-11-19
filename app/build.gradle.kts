@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     id("com.google.gms.google-services")
+    id ("kotlin-parcelize")
     //alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
@@ -89,9 +90,10 @@ dependencies {
 
     implementation ("androidx.activity:activity-ktx:1.8.0")
 
-    implementation("androidx.navigation:navigation-compose:2.7.3") // Use the latest version
+    implementation("androidx.navigation:navigation-compose:2.8.4") // Use the latest version
 
 
+    implementation ("androidx.compose.ui:ui-test-junit4:1.2.1")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

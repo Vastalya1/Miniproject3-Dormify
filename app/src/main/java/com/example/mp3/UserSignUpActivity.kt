@@ -1,6 +1,5 @@
 package com.example.mp3
 
-//import androidx.media3.common.util.Log
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -12,7 +11,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 
-class SignUpActivity : AppCompatActivity() {
+class UserSignUpActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySignUpBinding
     private var isSignUpMode = true // Flag to toggle between sign-up and sign-in
@@ -92,7 +91,7 @@ class SignUpActivity : AppCompatActivity() {
                     if (user != null) {
                         // Redirect to home screen
                         val intent = Intent(this, MainActivity::class.java).apply {
-                            putExtra("composable_key", "OwnerHomeScreen")
+                            putExtra("composable_key", "UserHomeScreen")
                         }
                         startActivity(intent)
                         finish()
@@ -107,7 +106,7 @@ class SignUpActivity : AppCompatActivity() {
     private fun collectUserInfo(user: FirebaseUser) {
         val name = binding.etName.text.toString()
         val phone = binding.etPhone.text.toString()
-        val role = "Owner" // Default role, can be changed based on your logic
+        val role = "user" // Default role, can be changed based on your logic
 
         if (name.isNotBlank() && phone.isNotBlank()) {
             saveUserToFirestore(user, name, phone, role)
@@ -132,7 +131,7 @@ class SignUpActivity : AppCompatActivity() {
                 Toast.makeText(this, "User successfully registered", Toast.LENGTH_SHORT).show()
                 // Redirect to another activity or home page
                 val intent = Intent(this, MainActivity::class.java).apply {
-                    putExtra("composable_key", "OwnerHomeScreen")
+                    putExtra("composable_key", "UserHomeScreen")
                 }
                 startActivity(intent)
                 finish()
