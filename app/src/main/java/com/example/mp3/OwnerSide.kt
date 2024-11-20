@@ -110,7 +110,9 @@ fun RentalAppNavHost(properties: List<Property>) {
             }
         }
         composable("ListProperty") { ListProperty(navController) }
-       // composable("Address") { Address(navController, bhk = "sf") }
+
+        //composable("Address") { Address(navController, bhk = "sf") }
+
     }
 }
 
@@ -556,6 +558,7 @@ fun ListProperty(navController: NavController){
                 )
             }
         }
+
         // State variables for address inputs
         var addressLine1 by remember { mutableStateOf("") }
         var addressLine2 by remember { mutableStateOf("") }
@@ -722,6 +725,23 @@ fun ListProperty(navController: NavController){
             Text("Add Property")
         }
 
+
+        Button(onClick = { navController.navigate("Address") },
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+                .height(56.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(103, 58, 183, 255))
+                .border(
+                    width = 2.dp,
+                    color = Color.White,
+                    shape = RoundedCornerShape(8.dp)
+                )
+        ) {
+            Text("Add Property")
+        }
+
     }
 
 }
@@ -748,8 +768,10 @@ fun ListProperty(navController: NavController){
 //        val focusManager = LocalFocusManager.current
 //
 //        Text(text = "Address",
+
 //            fontSize = 20.sp,
 //            fontWeight = FontWeight.Bold,
+
 //        )
 //        // Address input fields
 //        OutlinedTextField(
@@ -843,6 +865,19 @@ fun ListProperty(navController: NavController){
 //            )
 //        )
 //
+
+//        // Next button
+//        Button(
+//            onClick = {
+//                navController.navigate("") // Replace "nextScreen" with your actual route
+//            },
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(top = 16.dp) // Add some padding for spacing
+//        ) {
+//            Text("Next")
+//        }
+
 //        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
 //    }
 //}
@@ -853,8 +888,10 @@ fun Visuals() {
     MP3Theme {
         val navController=rememberNavController()
 
+
         //Address(navController)
         //ListProperty(navController)
     }
+
 
 }

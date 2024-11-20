@@ -89,12 +89,21 @@ class UserSignUpActivity : AppCompatActivity() {
                     // Sign-in successful
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
-                        // Redirect to home screen
-                        val intent = Intent(this, MainActivity::class.java).apply {
-                            putExtra("composable_key", "UserHomeScreen")
-                        }
-                        startActivity(intent)
-                        finish()
+                        // Check user role from Firestore
+                        FirebaseFirestore.getInstance().collection("users").document(user.uid).get()
+                            .addOnSuccessListener { document ->
+                                val role = document.getString("role")
+                                if (role == "user") {
+                                    // Redirect to user home screen
+                                    val intent = Intent(this, MainActivity::class.java).apply {
+                                        putExtra("composable_key", "UserHomeScreen")
+                                    }
+                                    startActivity(intent)
+                                    finish()
+                                } else {
+                                    Toast.makeText(this, "Access denied: You are not a user", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                     }
                 } else {
                     // Sign-in failed
