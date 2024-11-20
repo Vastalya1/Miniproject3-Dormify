@@ -71,7 +71,31 @@ android {
     }
 }
 
+//ak
+
+
 dependencies {
+
+    //ak
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.7.0")
+    implementation ("com.google.firebase:firebase-storage-ktx:20.1.0")
+    implementation ("com.google.firebase:firebase-auth-ktx:21.1.0")
+    implementation ("com.google.code.gson:gson:2.10.1")
+    implementation ("androidx.compose.ui:ui-test-junit4:1.2.1")
+    implementation ("com.google.code.gson:gson:2.10")
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.10.2")
+
+    implementation (platform("com.google.firebase:firebase-bom:32.7.2"))
+        implementation ("com.google.firebase:firebase-firestore-ktx")
+        implementation ("com.google.firebase:firebase-analytics-ktx")
+
+
+
+    // Firebase Firestore
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.9.0")
+// Firebase Authentication (if needed)
+    implementation ("com.google.firebase:firebase-auth-ktx:22.1.0")
+
 
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
@@ -79,6 +103,8 @@ dependencies {
     implementation ("com.google.firebase:firebase-auth:21.0.6")
     //implementation("com.google.android.gms:play-services-maps:18.0.2")
     implementation("com.google.android.gms:play-services-maps:19.0.0")
+
+
 
     // Import the BoM for the Firebase platform
     implementation(platform("com.google.firebase:firebase-bom:33.6.0"))

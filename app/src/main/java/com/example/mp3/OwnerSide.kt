@@ -1,8 +1,10 @@
 package com.example.mp3
 
 //import com.google.common.reflect.TypeToken
+import android.app.Application
 import android.app.DatePickerDialog
 import android.content.Context
+import android.util.Log
 import android.widget.DatePicker
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -59,6 +61,18 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.io.InputStreamReader
 import java.util.Calendar
+import com.google.firebase.FirebaseApp
+// ... other imports ...
+import com.google.firebase.firestore.FirebaseFirestore
+
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        FirebaseApp.initializeApp(this)
+    }
+}
+
+
 
 data class Property(
     val name: String,
@@ -96,7 +110,9 @@ fun RentalAppNavHost(properties: List<Property>) {
             }
         }
         composable("ListProperty") { ListProperty(navController) }
+
         //composable("Address") { Address(navController, bhk = "sf") }
+
     }
 }
 
@@ -201,6 +217,18 @@ fun InterestedPeopleScreen(property: Property, navController: NavHostController)
         }
     }
 }
+
+data class Features(
+    val propertyType: String,
+    val bhk: String,
+    val buildUpArea: String,
+    val furnishType: String,
+    val monthlyRent: String,
+    val availableFrom: String,
+    val securityDeposit: String,
+    val address: String
+)
+
 
 @Composable
 fun ListProperty(navController: NavController){
@@ -640,6 +668,64 @@ fun ListProperty(navController: NavController){
             )
         )
 
+        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
+
+//        Button(onClick = {/*TODO*/ },
+//            modifier = Modifier
+//                .padding(16.dp)
+//                .fillMaxWidth()
+//                .height(56.dp)
+//                .clip(RoundedCornerShape(8.dp))
+//                .background(Color(103, 58, 183, 255))
+//                .border(
+//                    width = 2.dp,
+//                    color = Color.White,
+//                    shape = RoundedCornerShape(8.dp)
+//                )
+//        ) {
+//            Text("Add Property")
+//        }
+
+        Button(onClick = {
+            val db = FirebaseFirestore.getInstance()
+
+            // Create a map of the property data
+            val propertyData = hashMapOf(
+                "propertyType" to propertyType.value,
+                "bhk" to bhk.value,
+                "buildUpArea" to buildUpArea,
+                "furnishType" to furnishType.value,
+                "monthlyRent" to monthlyRent,
+                "availableFrom" to selectedDate,
+                "securityDeposit" to if (securityDeposit == "Custom") customValue else securityDeposit,
+                "address" to mapOf(
+                    "addressLine1" to addressLine1,
+                    "addressLine2" to addressLine2,
+                    "city" to city,
+                    "state" to state,
+                    "pinCode" to pinCode,
+                    "country" to country
+                ),
+                "timestamp" to com.google.firebase.Timestamp.now() // Optional: adds timestamp of when property was added
+            )
+
+            // Add the property to Firestore
+            db.collection("owner")
+                .add(propertyData)
+                .addOnSuccessListener { documentReference ->
+                    Log.d("Firebase", "Property added with ID: ${documentReference.id}")
+                    // You can add success handling here (e.g., show a success message or navigate back)
+                    navController.navigateUp()
+                }
+                .addOnFailureListener { e ->
+                    Log.w("Firebase", "Error adding property", e)
+                    // You can add error handling here (e.g., show an error message)
+                }
+        }) {
+            Text("Add Property")
+        }
+
+
         Button(onClick = { navController.navigate("Address") },
             modifier = Modifier
                 .padding(16.dp)
@@ -655,6 +741,7 @@ fun ListProperty(navController: NavController){
         ) {
             Text("Add Property")
         }
+
     }
 
 }
@@ -681,8 +768,10 @@ fun ListProperty(navController: NavController){
 //        val focusManager = LocalFocusManager.current
 //
 //        Text(text = "Address",
-//        fontSize = 20.sp,
-//        fontWeight = FontWeight.Bold,
+
+//            fontSize = 20.sp,
+//            fontWeight = FontWeight.Bold,
+
 //        )
 //        // Address input fields
 //        OutlinedTextField(
@@ -776,6 +865,7 @@ fun ListProperty(navController: NavController){
 //            )
 //        )
 //
+
 //        // Next button
 //        Button(
 //            onClick = {
@@ -787,6 +877,7 @@ fun ListProperty(navController: NavController){
 //        ) {
 //            Text("Next")
 //        }
+
 //        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
 //    }
 //}
@@ -796,6 +887,7 @@ fun ListProperty(navController: NavController){
 fun Visuals() {
     MP3Theme {
         val navController=rememberNavController()
+
 
         //Address(navController)
         //ListProperty(navController)

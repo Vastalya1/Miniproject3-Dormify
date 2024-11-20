@@ -52,6 +52,8 @@ import com.google.firebase.FirebaseApp
 //    val contactInfo: List<String> // Add contact info for interested people
 //)
 
+
+
 class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
