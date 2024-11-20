@@ -70,7 +70,20 @@ android {
     }
 }
 
+//ak
+
+
 dependencies {
+
+    //ak
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.7.0")
+    implementation ("com.google.firebase:firebase-storage-ktx:20.1.0")
+    implementation ("com.google.firebase:firebase-auth-ktx:21.1.0")
+    // Firebase Firestore
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.9.0")
+// Firebase Authentication (if needed)
+    implementation ("com.google.firebase:firebase-auth-ktx:22.1.0")
+
 
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
@@ -78,6 +91,8 @@ dependencies {
     implementation ("com.google.firebase:firebase-auth:21.0.6")
     implementation("com.google.android.gms:play-services-maps:18.0.2")
     implementation("com.google.android.gms:play-services-maps:19.0.0")
+
+
 
     // Import the BoM for the Firebase platform
     implementation(platform("com.google.firebase:firebase-bom:33.6.0"))

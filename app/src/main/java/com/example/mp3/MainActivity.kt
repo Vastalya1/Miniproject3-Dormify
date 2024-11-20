@@ -63,6 +63,52 @@ import androidx.navigation.compose.rememberNavController
 import com.example.mp3.ui.theme.MP3Theme
 import com.google.firebase.FirebaseApp
 import java.util.Calendar
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.auth.FirebaseAuth
+
+//ak
+fun savePropertyData(
+    propertyType: String,
+    bhk: String,
+    buildUpArea: String,
+    furnishType: String,
+    amenities: List<String>,
+    location: Location,
+    monthlyRent: String,
+    availableFrom: String,
+    securityDeposit: String,
+    customValue: String? // Only used if security deposit is custom
+) {
+    val db = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return  // Ensure the user is logged in
+
+    // Create the property data model
+    val propertyData = DataModel(
+        propertyType = propertyType,
+        bhk = bhk,
+        buildUpArea = buildUpArea,
+        furnishType = furnishType,
+        amenities = amenities,
+        location = location,
+        monthlyRent = monthlyRent,
+        availableFrom = availableFrom,
+        securityDeposit = securityDeposit,
+        customSecurityDepositAmount = customValue.takeIf { securityDeposit == "Custom" }
+    )
+
+    // Save the data in Firestore under the user's properties
+    db.collection("owners")  // Collection name: "owners"
+        .document(userId)  // Use the logged-in user's UID as the document ID
+        .collection("properties")  // Sub-collection name: "properties"
+        .add(propertyData)  // Add the property data to Firestore
+        .addOnSuccessListener {
+            println("Property data added successfully!")
+        }
+        .addOnFailureListener { e ->
+            println("Error adding property: $e")
+        }
+}
+
 
 data class Property(
     val name: String,
@@ -208,7 +254,20 @@ fun LoginScreen(navController: NavController) {
 
 @Composable
 fun ListProperty(navController: NavController){
+    //ak
+//    val focusManager = LocalFocusManager.current
     val focusManager = LocalFocusManager.current
+    var propertyType by remember { mutableStateOf("Flat") }
+    var bhk by remember { mutableStateOf("1 BHK") }
+    var buildUpArea by remember { mutableStateOf("") }
+    var furnishType by remember { mutableStateOf("Fully Furnished") }
+    var amenities by remember { mutableStateOf(listOf<String>()) }
+    var locationAddress by remember { mutableStateOf("") }
+    var locationCity by remember { mutableStateOf("") }
+    var monthlyRent by remember { mutableStateOf("") }
+    var availableFrom by remember { mutableStateOf("") }
+    var securityDeposit by remember { mutableStateOf("") }
+    var customValue by remember { mutableStateOf("") }
     Column(
         modifier = Modifier
             .fillMaxSize()
