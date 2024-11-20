@@ -2,6 +2,7 @@ package com.example.mp3
 
 //import com.google.common.reflect.TypeToken
 // ... other imports ...
+
 import android.app.Application
 import android.app.DatePickerDialog
 import android.content.Context
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -109,7 +112,7 @@ fun RentalAppNavHost(properties: List<Property>) {
             }
         }
         composable("ListProperty") { ListProperty(navController) }
-        // composable("Address") { Address(navController, bhk = "sf") }
+        composable("Amenities") { Amenities(navController) }
     }
 }
 
@@ -666,22 +669,6 @@ fun ListProperty(navController: NavController){
 
         val addr = addressLine1 + addressLine2 + city + state + pinCode + country
 
-//        Button(onClick = {/TODO/ },
-//            modifier = Modifier
-//                .padding(16.dp)
-//                .fillMaxWidth()
-//                .height(56.dp)
-//                .clip(RoundedCornerShape(8.dp))
-//                .background(Color(103, 58, 183, 255))
-//                .border(
-//                    width = 2.dp,
-//                    color = Color.White,
-//                    shape = RoundedCornerShape(8.dp)
-//                )
-//        ) {
-//            Text("Add Property")
-//        }
-
         Button(onClick = {
             val db = FirebaseFirestore.getInstance()
 
@@ -711,7 +698,8 @@ fun ListProperty(navController: NavController){
                 .addOnSuccessListener { documentReference ->
                     Log.d("Firebase", "Property added with ID: ${documentReference.id}")
                     // You can add success handling here (e.g., show a success message or navigate back)
-                    navController.navigateUp()
+
+                    navController.navigate("home")
                 }
                 .addOnFailureListener { e ->
                     Log.w("Firebase", "Error adding property", e)
@@ -722,6 +710,162 @@ fun ListProperty(navController: NavController){
         }
 
     }
+
+}
+
+@Composable
+fun Amenities(navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // Make the entire page scrollable
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Flat furnishings
+        Text(
+            text = "Flat Furnishings",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(75, 81, 83, 255)
+        )
+
+        val flatFurnishingOptions = listOf(
+            "Dining Table", "Washing Machine", "Sofa", "Stove", "Microwave",
+            "Fridge", "Water Purifier", "Gas Pipeline", "Bed", "TV", "Study Table", "Cupboard", "Geyser"
+        )
+        val selectedFlatFurnishingOptions = remember {
+            mutableStateMapOf<String, Boolean>().apply {
+                flatFurnishingOptions.forEach { put(it, false) }
+            }
+        }
+
+
+        // Display flat furnishing options in rows of 3
+        flatFurnishingOptions.chunked(3).forEach { rowItems ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { option ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f) // Distribute evenly across the row
+                            .height(80.dp) // Ensure consistent height
+                            .width(100.dp) // Ensure consistent width
+                            .clickable {
+                                selectedFlatFurnishingOptions[option] =
+                                    !(selectedFlatFurnishingOptions[option] ?: false)
+                            }
+                            .border(
+                                width = 2.dp,
+                                color = if (selectedFlatFurnishingOptions[option] == true) Color.Blue else Color.Gray,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .background(
+                                color = if (selectedFlatFurnishingOptions[option] == true) Color.Blue.copy(
+                                    alpha = 0.2f
+                                ) else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = option,
+                            fontSize = 16.sp,
+                            color = if (selectedFlatFurnishingOptions[option] == true) Color.Blue else Color.Black,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2
+                        )
+                    }
+                }
+            }
+        }
+
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Society amenities
+        Text(
+            text = "Society Amenities",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(75, 81, 83, 255)
+        )
+
+        val societyAmenitiesOptions = listOf(
+            "Lift", "CCTV", "GYM", "Garden", "Swimming Pool",
+            "Gated Community", "Regular Water Supply", "Power Backup", "Pet Allowed"
+        )
+        val societyAmenitiesSelectedOptions = remember {
+            mutableStateMapOf<String, Boolean>().apply {
+                societyAmenitiesOptions.forEach { put(it, false) }
+            }
+        }
+
+        // Display society amenities options in rows of 3
+        societyAmenitiesOptions.chunked(3).forEach { rowItems ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { option ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f) // Distribute evenly across the row
+                            .height(100.dp)
+                            .clickable {
+                                societyAmenitiesSelectedOptions[option] =
+                                    !(societyAmenitiesSelectedOptions[option] ?: false)
+                            }
+                            .border(
+                                width = 2.dp,
+                                color = if (societyAmenitiesSelectedOptions[option] == true) Color.Blue else Color.Gray,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .background(
+                                color = if (societyAmenitiesSelectedOptions[option] == true) Color.Blue.copy(
+                                    alpha = 0.2f
+                                ) else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = option,
+                            fontSize = 16.sp,
+                            color = if (societyAmenitiesSelectedOptions[option] == true) Color.Blue else Color.Black,
+                            textAlign = TextAlign.Center,
+                            maxLines = 3
+                        )
+                    }
+                }
+            }
+        }
+
+        Button(
+            onClick = { navController.navigate("listProperty") },
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = "Save",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+
 
 }
 
