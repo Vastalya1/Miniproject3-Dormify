@@ -96,7 +96,7 @@ fun RentalAppNavHost(properties: List<Property>) {
             }
         }
         composable("ListProperty") { ListProperty(navController) }
-        composable("Address") { Address(navController) }
+        //composable("Address") { Address(navController, bhk = "sf") }
     }
 }
 
@@ -531,35 +531,6 @@ fun ListProperty(navController: NavController){
             }
         }
 
-        Button(onClick = { navController.navigate("Address") },
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
-                .height(56.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(103, 58, 183, 255))
-                .border(
-                    width = 2.dp,
-                    color = Color.White,
-                    shape = RoundedCornerShape(8.dp)
-                )
-        ) {
-            Text("Next")
-        }
-    }
-
-}
-
-@Composable
-fun Address(navController: NavController) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
         // State variables for address inputs
         var addressLine1 by remember { mutableStateOf("") }
         var addressLine2 by remember { mutableStateOf("") }
@@ -571,9 +542,11 @@ fun Address(navController: NavController) {
         // Focus manager to control focus
         val focusManager = LocalFocusManager.current
 
+        Spacer(modifier = Modifier.height(8.dp))
+
         Text(text = "Address",
-        fontSize = 20.sp,
-        fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
         )
         // Address input fields
         OutlinedTextField(
@@ -667,27 +640,165 @@ fun Address(navController: NavController) {
             )
         )
 
-        // Next button
-        Button(
-            onClick = {
-                navController.navigate("") // Replace "nextScreen" with your actual route
-            },
+        Button(onClick = { navController.navigate("Address") },
             modifier = Modifier
+                .padding(16.dp)
                 .fillMaxWidth()
-                .padding(top = 16.dp) // Add some padding for spacing
+                .height(56.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(103, 58, 183, 255))
+                .border(
+                    width = 2.dp,
+                    color = Color.White,
+                    shape = RoundedCornerShape(8.dp)
+                )
         ) {
-            Text("Next")
+            Text("Add Property")
         }
-        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
     }
+
 }
+
+//@Composable
+//fun Address(navController: NavController, bhk: String) {
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(16.dp)
+//            .verticalScroll(rememberScrollState()),
+//        verticalArrangement = Arrangement.Center,
+//        horizontalAlignment = Alignment.CenterHorizontally
+//    ) {
+//        // State variables for address inputs
+//        var addressLine1 by remember { mutableStateOf("") }
+//        var addressLine2 by remember { mutableStateOf("") }
+//        var city by remember { mutableStateOf("") }
+//        var state by remember { mutableStateOf("") }
+//        var pinCode by remember { mutableStateOf("") }
+//        var country by remember { mutableStateOf("") }
+//
+//        // Focus manager to control focus
+//        val focusManager = LocalFocusManager.current
+//
+//        Text(text = "Address",
+//        fontSize = 20.sp,
+//        fontWeight = FontWeight.Bold,
+//        )
+//        // Address input fields
+//        OutlinedTextField(
+//            value = addressLine1,
+//            onValueChange = { addressLine1 = it },
+//            label = { Text("Address Line 1") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        OutlinedTextField(
+//            value = addressLine2,
+//            onValueChange = { addressLine2 = it },
+//            label = { Text("Address Line 2") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        OutlinedTextField(
+//            value = city,
+//            onValueChange = { city = it },
+//            label = { Text("City") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        OutlinedTextField(
+//            value = state,
+//            onValueChange = { state = it },
+//            label = { Text("State") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        OutlinedTextField(
+//            value = pinCode,
+//            onValueChange = { pinCode = it },
+//            label = { Text("Pin Code") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        // Text field for country input
+//        OutlinedTextField(
+//            value = country,
+//            onValueChange = { country = it },
+//            label = { Text("Country") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Done // Set the action to "Done" for the last field
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onDone = {
+//                    focusManager.clearFocus() // Dismiss the keyboard when done
+//                }
+//            )
+//        )
+//
+//        // Next button
+//        Button(
+//            onClick = {
+//                navController.navigate("") // Replace "nextScreen" with your actual route
+//            },
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(top = 16.dp) // Add some padding for spacing
+//        ) {
+//            Text("Next")
+//        }
+//        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
+//    }
+//}
 
 @Preview(showBackground = true)
 @Composable
 fun Visuals() {
     MP3Theme {
         val navController=rememberNavController()
-        Address(navController)
+
+        //Address(navController)
+        //ListProperty(navController)
     }
 
 

@@ -77,7 +77,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation ("com.firebaseui:firebase-ui-auth:7.2.0")
     implementation ("com.google.firebase:firebase-auth:21.0.6")
-    implementation("com.google.android.gms:play-services-maps:18.0.2")
+    //implementation("com.google.android.gms:play-services-maps:18.0.2")
     implementation("com.google.android.gms:play-services-maps:19.0.0")
 
     // Import the BoM for the Firebase platform
@@ -113,6 +113,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+    implementation(libs.play.services.location)
     //implementation(libs.androidx.media3.common.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
