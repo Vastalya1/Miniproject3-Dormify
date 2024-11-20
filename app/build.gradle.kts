@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     id("com.google.gms.google-services")
+    id ("kotlin-parcelize")
     //alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
@@ -79,6 +80,17 @@ dependencies {
     implementation ("com.google.firebase:firebase-firestore-ktx:24.7.0")
     implementation ("com.google.firebase:firebase-storage-ktx:20.1.0")
     implementation ("com.google.firebase:firebase-auth-ktx:21.1.0")
+    implementation ("com.google.code.gson:gson:2.10.1")
+    implementation ("androidx.compose.ui:ui-test-junit4:1.2.1")
+    implementation ("com.google.code.gson:gson:2.10")
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.10.2")
+
+    implementation (platform("com.google.firebase:firebase-bom:32.7.2"))
+        implementation ("com.google.firebase:firebase-firestore-ktx")
+        implementation ("com.google.firebase:firebase-analytics-ktx")
+
+
+
     // Firebase Firestore
     implementation ("com.google.firebase:firebase-firestore-ktx:24.9.0")
 // Firebase Authentication (if needed)
@@ -104,9 +116,12 @@ dependencies {
 
     implementation ("androidx.activity:activity-ktx:1.8.0")
 
-    implementation("androidx.navigation:navigation-compose:2.7.3") // Use the latest version
+    implementation("androidx.navigation:navigation-compose:2.8.4") // Use the latest version
 
 
+    implementation ("androidx.compose.ui:ui-test-junit4:1.2.1")
+
+    implementation ("com.google.code.gson:gson:2.10.1")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
