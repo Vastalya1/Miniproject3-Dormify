@@ -1,10 +1,14 @@
 package com.example.mp3
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -14,6 +18,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -37,6 +42,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
+
+        // Set the custom info window adapter
+        map.setInfoWindowAdapter(CustomInfoWindowAdapter(this))
 
         // Fetch locations from Firestore
         fetchLocationsFromFirestore()
@@ -137,4 +145,28 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+}
+
+class CustomInfoWindowAdapter(private val context: Context) : GoogleMap.InfoWindowAdapter {
+
+    override fun getInfoContents(marker: Marker): View? {
+        val view = LayoutInflater.from(context).inflate(R.layout.custom_info_window, null)
+
+        val locationName = view.findViewById<TextView>(R.id.location_name)
+        val locationAddress = view.findViewById<TextView>(R.id.location_address)
+        val locationPrice = view.findViewById<TextView>(R.id.location_price)
+
+        locationName.text = marker.title
+
+        // Split the snippet and handle potential IndexOutOfBoundsException
+        val snippetParts = marker.snippet?.split("|") ?: listOf("", "")
+        locationAddress.text = if (snippetParts.size > 0) snippetParts[0].trim() else "No Address"
+        locationPrice.text = if (snippetParts.size > 1) snippetParts[1].trim() else "No Price"
+
+        return view
+    }
+
+    override fun getInfoWindow(marker: Marker): View? {
+        return null // Use default window
+    }
 }
