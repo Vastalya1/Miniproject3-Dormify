@@ -3,9 +3,11 @@ package com.example.mp3
 //import com.google.common.reflect.TypeToken
 // ... other imports ...
 
+//import com.example.mp3.AmenitiesDataStore.AmenitiesDataStore.saveAmenitiesData
 import android.app.Application
 import android.app.DatePickerDialog
 import android.content.Context
+import android.location.Geocoder
 import android.util.Log
 import android.widget.DatePicker
 import androidx.compose.foundation.background
@@ -30,9 +32,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,33 +53,21 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-//import com.example.mp3.AmenitiesDataStore.AmenitiesDataStore.saveAmenitiesData
-import com.example.mp3.ui.theme.MP3Theme
-import com.google.firebase.FirebaseApp
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import java.io.InputStreamReader
-import java.util.Calendar
 import com.example.mp3.AmenitiesDataStore.getAmenitiesData
 import com.example.mp3.AmenitiesDataStore.saveAmenitiesData
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
-import android.location.Geocoder
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import java.util.Locale
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 
 private suspend fun getCoordinatesFromAddress(address: String, context: Context): GeoPoint? {
     Log.d("GeocodingDebug", "Starting geocoding for address: $address")
@@ -141,11 +129,20 @@ fun saveAmenitiesData(data: HashMap<String, List<String>>) {
 }
 
 data class Property(
-    val name: String,
-    val interestedPeople: List<String>,
-    val contactInfo: List<String> // Add contact info for interested people
+    val id: String = "",
+    val propertyType: String = "",
+    val bhk: String = "",
+    val buildUpArea: String = "",
+    val furnishType: String = "",
+    val monthlyRent: String = "",
+    val availableFrom: String = "",
+    val securityDeposit: String = "",
+    val address: Map<String, String> = emptyMap(),
+    val flatFurnishings: List<String> = emptyList(),
+    val societyAmenities: List<String> = emptyList(),
+    val ownerId: String = "",
+    val ownerEmail: String = ""
 )
-
 data class PropertyFormState(
     val id: String = "",  // Document ID
     val name: String = "",
@@ -168,13 +165,6 @@ data class PropertyFormState(
 )
 
 
-// Function to load countries from the JSON file
-suspend fun loadCountries(context: Context): List<String> {
-    val inputStream = context.assets.open("countries.json")
-    val reader = InputStreamReader(inputStream)
-    val countryListType = object : TypeToken<List<String>>() {}.type
-    return Gson().fromJson(reader, countryListType)
-}
 
 @Composable
 fun RentalAppNavHost(properties: List<Property>) {
@@ -197,18 +187,10 @@ fun RentalAppNavHost(properties: List<Property>) {
             RentalAppScreen(
                 properties = properties,
                 onAddPropertyClick = { navController.navigate("ListProperty") },
-                onInterestedClick = { property ->
-                    navController.navigate("interested/${property.name}")
-                }
+
             )
         }
-        composable("interested/{propertyName}") { backStackEntry ->
-            val propertyName = backStackEntry.arguments?.getString("propertyName") ?: ""
-            val property = properties.find { it.name == propertyName }
-            if (property != null) {
-                InterestedPeopleScreen(property = property, navController = navController)
-            }
-        }
+
         composable("ListProperty") { ListProperty(navController = navController, propertyFormState = propertyFormState) }
         composable("Amenities") { Amenities(navController = navController, propertyFormState = propertyFormState) }
     }
@@ -218,7 +200,7 @@ fun RentalAppNavHost(properties: List<Property>) {
 fun RentalAppScreen(
     properties: List<Property>,
     onAddPropertyClick: () -> Unit,
-    onInterestedClick: (Property) -> Unit
+
 ) {
     var ownerProperties by remember { mutableStateOf<List<PropertyFormState>>(emptyList()) }
     val currentUser = FirebaseAuth.getInstance().currentUser
@@ -240,7 +222,7 @@ fun RentalAppScreen(
                         for (doc in snapshot.documents) {
                             // Get the address map from the document
                             val address = doc.get("address") as? Map<*, *>
-                            
+
                             val property = PropertyFormState(
                                 id = doc.id,
                                 propertyType = doc.getString("propertyType") ?: "",
@@ -260,11 +242,11 @@ fun RentalAppScreen(
                                 ownerId = currentUser.uid,
                                 ownerEmail = currentUser.email ?: ""
                             )
-                            
+
                             // Log the address and location for debugging
                             Log.d("Firebase", "Address: $address")
                             Log.d("Firebase", "Location: ${address?.get("location")}")
-                            
+
                             propertyList.add(property)
                         }
                     }
@@ -295,83 +277,15 @@ fun RentalAppScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(properties) { property ->
-                PropertyItem(property = property, onInterestedClick = onInterestedClick)
+
             }
         }
     }
 }
 
-@Composable
-fun PropertyItem(
-    property: Property,
-    onInterestedClick: (Property) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-            .border(1.dp, Color.Gray)
-            .padding(16.dp)
-    ) {
-        Text(
-            text = property.name,
-            style = MaterialTheme.typography.headlineSmall
-        )
-        Spacer(modifier = Modifier.height(8.dp))
 
-        val interestedCount = property.interestedPeople.size
-        Text(
-            text = "$interestedCount People Interested",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.clickable {
-                onInterestedClick(property)
-            }
-        )
-    }
-}
 
-@Composable
-fun InterestedPeopleScreen(property: Property, navController: NavHostController) {
-    Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
-        ) {
-            Text(
-                text = "Interested People for ${property.name}",
-                style = MaterialTheme.typography.headlineMedium
-            )
-            Spacer(modifier = Modifier.height(16.dp))
 
-            // Show each interested person with their contact info
-            property.interestedPeople.forEachIndexed { index, person ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    Text(
-                        text = person,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = property.contactInfo[index],
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { navController.navigateUp() }) {
-                Text("Go Back")
-            }
-        }
-    }
-}
 
 data class Features(
     val propertyType: String,
@@ -1138,25 +1052,25 @@ fun Amenities(navController: NavController, propertyFormState: PropertyFormState
 
         Button(
             onClick = {
-                    // Filter selected amenities
-                    val selectedFlatFurnishings = selectedFlatFurnishingOptions
-                        .filter { it.value }
-                        .keys
-                        .toList()
+                // Filter selected amenities
+                val selectedFlatFurnishings = selectedFlatFurnishingOptions
+                    .filter { it.value }
+                    .keys
+                    .toList()
 
-                    val selectedSocietyAmenities = societyAmenitiesSelectedOptions
-                        .filter { it.value }
-                        .keys
-                        .toList()
+                val selectedSocietyAmenities = societyAmenitiesSelectedOptions
+                    .filter { it.value }
+                    .keys
+                    .toList()
 
-                    // Store the selections in SharedPreferences or similar storage
-                    val amenitiesData = hashMapOf(
-                        "flatFurnishings" to selectedFlatFurnishings,
-                        "societyAmenities" to selectedSocietyAmenities
-                    )
+                // Store the selections in SharedPreferences or similar storage
+                val amenitiesData = hashMapOf(
+                    "flatFurnishings" to selectedFlatFurnishings,
+                    "societyAmenities" to selectedSocietyAmenities
+                )
 
-                    // Store in temporary storage (you'll need to implement this)
-                    saveAmenitiesData(amenitiesData)
+                // Store in temporary storage (you'll need to implement this)
+                saveAmenitiesData(amenitiesData)
                 navController.navigate("listProperty") },
             modifier = Modifier
                 .padding(16.dp)
@@ -1296,14 +1210,14 @@ fun Amenities(navController: NavController, propertyFormState: PropertyFormState
 //    }
 //}
 
-@Preview(showBackground = true)
-@Composable
-fun Visuals() {
-    MP3Theme {
-        val navController=rememberNavController()
-
-        //Address(navController)
-        //ListProperty(navController)
-    }
-
-}
+//@Preview(showBackground = true)
+//@Composable
+//fun Visuals() {
+//    MP3Theme {
+//        val navController=rememberNavController()
+//
+//        //Address(navController)
+//        //ListProperty(navController)
+//    }
+//
+//}

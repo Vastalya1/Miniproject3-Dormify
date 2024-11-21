@@ -1,58 +1,35 @@
 package com.example.mp3
 
-//import IndexPage
-//import androidx.compose.ui.text.input.KeyboardOptions
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.mp3.ui.theme.MP3Theme
 import com.google.firebase.FirebaseApp
-
-//import kotlinx.coroutines.flow.internal.NoOpContinuation.context
-//import kotlin.coroutines.jvm.internal.CompletedContinuation.context
-
-//data class Property(
-//    val name: String,
-//    val interestedPeople: List<String>,
-//    val contactInfo: List<String> // Add contact info for interested people
-//)
-
-
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -62,34 +39,93 @@ class MainActivity : ComponentActivity() {
         // Initialize Firebase
         FirebaseApp.initializeApp(this)
 
-        val mapintent = Intent(this, MapsActivity::class.java)
+        val mapIntent = Intent(this, MapsActivity::class.java)
         val composableKey = intent.getStringExtra("composable_key")
-        
+
         // Debugging log
         Log.d("MainActivity", "composableKey: $composableKey")
-
 
         when (composableKey) {
             "OwnerHomeScreen" -> setContent {
                 MP3Theme {
                     Scaffold(modifier = Modifier.fillMaxSize()) {
+                        // Fetch properties for the current user
+                        val currentUser = FirebaseAuth.getInstance().currentUser
+                        val db = FirebaseFirestore.getInstance()
 
-                        val properties = remember {
-                            listOf(
-                                Property("Luxury Apartment", listOf("John Doe", "Jane Smith"), listOf("123-456-7890", "987-654-3210")),
-                                Property("Cozy PG", listOf("Alice Johnson"), listOf("111-222-3333")),
-                                Property("Beachside Hostel", listOf("Bob Brown", "Charlie White"), listOf("555-555-5555", "444-444-4444"))
-                            )
+                        // State to hold properties
+                        val properties = remember { mutableStateOf<List<Property>>(emptyList()) }
+
+                        // Fetch properties for the current owner
+                        if (currentUser != null) {
+                            db.collection("properties")
+                                .document(currentUser.uid)
+                                .collection("ownerProperties")
+                                .addSnapshotListener { snapshot, e ->
+                                    if (e != null) {
+                                        Log.w("Firebase", "Listen failed.", e)
+                                        return@addSnapshotListener
+                                    }
+                                    val propertyList = mutableListOf<Property>()
+                                    if (snapshot != null) {
+                                        for (doc in snapshot.documents) {
+                                            val address = doc.get("address") as? Map<*, *>
+                                            
+                                            // Fetch amenities directly from the property document
+                                            val amenities = doc.get("amenities") as? Map<*, *>
+                                            val flatFurnishings = amenities?.get("flatFurnishings") as? List<String> ?: emptyList()
+                                            val societyAmenities = amenities?.get("societyAmenities") as? List<String> ?: emptyList()
+
+                                            // Create property object with document ID as property ID
+                                            val property = Property(
+                                                id = doc.id, // Document ID as property ID
+                                                propertyType = doc.getString("propertyType") ?: "",
+                                                bhk = doc.getString("bhk") ?: "",
+                                                buildUpArea = doc.getString("buildUpArea") ?: "",
+                                                furnishType = doc.getString("furnishType") ?: "",
+                                                monthlyRent = doc.getString("monthlyRent") ?: "",
+                                                availableFrom = doc.getString("availableFrom") ?: "",
+                                                securityDeposit = doc.getString("securityDeposit") ?: "",
+                                                address = address as? Map<String, String> ?: emptyMap(),
+                                                flatFurnishings = flatFurnishings,
+                                                societyAmenities = societyAmenities,
+                                                ownerId = currentUser.uid,
+                                                ownerEmail = currentUser.email ?: ""
+                                            )
+                                            propertyList.add(property)
+                                        }
+                                    }
+                                    // Update the properties state after fetching all amenities
+                                    properties.value = propertyList
+                                }
+                        }
+
+                        // Function to delete a property
+                        fun deleteProperty(propertyId: String) {
+                            if (currentUser != null) {
+                                db.collection("properties")
+                                    .document(currentUser.uid)
+                                    .collection("ownerProperties")
+                                    .document(propertyId)
+                                    .delete()
+                                    .addOnSuccessListener {
+                                        Log.d("Firebase", "Property successfully deleted!")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Log.w("Firebase", "Error deleting property", e)
+                                    }
+                            }
                         }
 
                         // Call the navigation setup function
-                        RentalAppNavHost(properties = properties)
+                        RentalAppNavHost(properties = properties.value
+                            //, onDelete = { propertyId -> deleteProperty(propertyId) }
+                        ) // Pass the delete function to the NavHost
                     }
                 }
             }
 
-
-            "UserHomeScreen" -> startActivity(mapintent)
+            "UserHomeScreen" -> startActivity(mapIntent)
 
             else -> setContent {
                 MP3Theme {
@@ -98,58 +134,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
-//        setContent {
-//            MP3Theme {
-//               // val navController = rememberNavController()
-//
-//                Scaffold(modifier = Modifier.fillMaxSize()) {
-//
-//
-//                    val properties = remember {
-//                        listOf(
-//                            Property("Luxury Apartment", listOf("John Doe", "Jane Smith"), listOf("123-456-7890", "987-654-3210")),
-//                            Property("Cozy PG", listOf("Alice Johnson"), listOf("111-222-3333")),
-//                            Property("Beachside Hostel", listOf("Bob Brown", "Charlie White"), listOf("555-555-5555", "444-444-4444"))
-//                        )
-//                    }
-//
-////
-//                    val navController = rememberNavController()
-////
-//                    NavHost(navController = navController, startDestination = "index") {
-//
-//                        composable("owner") { LoginScreen(navController) }
-//                        composable("index") { IndexPage(navController) }
-//                        composable("amenities"){ Amenities(navController)}
-//                        composable("ListProperty") { ListProperty(navController) }
-//                        //composable("OwnerHomeScreen") { OwnerHomeScreen(navController, properties)}
-//                        composable(
-//                            route = "interested_people/{property}",
-//                            arguments = listOf(navArgument("property") {
-//                                type = NavType.ParcelableType(Property::class.java)
-//                            })
-//                        ) { backStackEntry ->
-//                            val property = backStackEntry.arguments?.getParcelable<Property>("property")
-//                            if (property != null) {
-//                                InterestedPeopleScreen(property, navController)
-//                            }
-//                        }
-//                    }
-//
-//                    //ListProperty(navController = navController)
-//                    //Amenities(navController = navController)
-//
-//                    OwnerHomeScreen(navController = navController, properties = properties)
-//
-//                    //AppNavHost()
-//                }
-//            }
-//        }
-//    }
-
     }
-
 
     @Composable
     fun IndexPage(
@@ -187,138 +172,6 @@ class MainActivity : ComponentActivity() {
             ) {
                 Text(text = "User", fontSize = 25.sp)
             }
-        }
-    }
-
-
-    @Composable
-    fun LoginScreen(navController: NavController) {
-        var username by remember { mutableStateOf("") }
-        var password by remember { mutableStateOf("") }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Login Page",
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(3, 169, 244, 255)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { navController.navigate("listProperty") },
-                modifier = Modifier.width(200.dp),
-            ) {
-                Text(
-                    text = "Login",
-                    fontSize = 25.sp
-                )
-            }
-
-            //Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "back",
-                fontSize = 20.sp,
-                textDecoration = TextDecoration.Underline,
-                modifier = Modifier
-                    .clickable { navController.popBackStack() }
-                    .padding(8.dp)
-            )
-        }
-    }
-
-
-//@Composable
-//fun AppNavHost(navController: NavHostController){
-//    //val navController = rememberNavController()
-//
-//    NavHost(navController = navController, startDestination = "OwnerHomeScreen") {
-//        composable("index") { IndexPage(navController) }
-//        composable("login") { LoginScreen(navController) }
-//        composable("listProperty") { ListProperty(navController) }
-//        composable("amenities") { Amenities(navController) }
-//        composable(
-//            route = "interested_people/{property}",
-//            arguments = listOf(navArgument("property") {
-//                type = NavType.ParcelableType(Property::class.java)
-//            })
-//        ) { backStackEntry ->
-////            val property = backStackEntry.arguments?.getParcelable<Property>("property")
-////            if (property!= null) {
-////                InterestedPeopleScreen(property, navController)
-////            }
-//        }
-//    }
-//}
-
-    //preview
-    @Preview(showBackground = true)
-    @Composable
-    fun Visuals() {
-        MP3Theme {
-            val navController = rememberNavController() // Preview navigation setup
-            //IndexPage(navController = navController)
-            // LoginScreen(navController = navController)
-            //ListProperty(navController= navController)
-            //Amenities(navController= navController)
-
-
-//        val signInLauncher = remember {
-//            object : ActivityResultLauncher<Intent>() {
-//                override fun launch(input: Intent, options: ActivityOptionsCompat?) {
-//                    // No-op for preview
-//                }
-//                override fun unregister() {
-//                    // No-op for preview
-//                }
-//            }
-//        }
-//
-//        val signInIntent = Intent() // Mocking an empty intent for preview
-//
-//        IndexPage(
-//            navController = navController,
-//            signInLauncher = signInLauncher,
-//            signInIntent = signInIntent
-//        )
-//
-//        val properties = listOf(
-//            Property("Luxury Apartment", listOf("John Doe", "Jane Smith"), listOf("123-456-7890", "987-654-3210")),
-//            Property("Cozy PG", listOf("Alice Johnson"), listOf("111-222-3333")),
-//            Property("Beachside Hostel", listOf("Bob Brown", "Charlie White"), listOf("555-555-5555", "444-444-4444"))
-//            //comment
-//        )
-//
-//        OwnerHomeScreen()
-
-            //IndexPage()
-
         }
     }
 }
