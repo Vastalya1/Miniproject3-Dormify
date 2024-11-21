@@ -10,7 +10,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import com.example.mp3.ui.theme.MP3Theme
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -20,17 +24,35 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.firebase.firestore.BuildConfig
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
+
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
-
     private lateinit var map: GoogleMap
     private val firestore = FirebaseFirestore.getInstance()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var placesClient: PlacesClient
+    private lateinit var viewModel: UserViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps3)
+
+        // Initialize Places API
+        if (!Places.isInitialized()) {
+            Places.initialize(applicationContext, getString(R.string.maps_api_key))
+        }
+        placesClient = Places.createClient(this)
+
+        // Initialize ViewModel
+        viewModel = ViewModelProvider(this, UserViewModelFactory(placesClient))[UserViewModel::class.java]
 
         // Initialize the FusedLocationProviderClient
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -38,146 +60,143 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         // Initialize the map
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
+
+        // Set up Compose View
+        findViewById<ComposeView>(R.id.compose_view).apply {
+            setContent {
+                MP3Theme {
+                    SearchInterface(viewModel)
+                }
+            }
+        }
+
+        // Observe location updates
+        lifecycleScope.launch {
+            viewModel.selectedLocationLatLng.collectLatest { latLng ->
+                latLng?.let {
+                    updateMapLocation(it)
+                }
+            }
+        }
     }
+
 
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
-
-        // Set the custom info window adapter
         map.setInfoWindowAdapter(CustomInfoWindowAdapter(this))
-
-        // Fetch locations from Firestore
-        fetchLocationsFromFirestore()
-
-        // Get the current location of the user
         getCurrentLocation()
     }
 
-    private fun fetchLocationsFromFirestore() {
-        // Check if permissions are granted
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.e("Permission Error", "Location permission not granted.")
-            return
+    private fun updateMapLocation(latLng: LatLng) {
+        map.clear()
+        map.addMarker(MarkerOptions().position(latLng))
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+        fetchNearbyProperties(latLng)
+    }
+
+    private fun fetchNearbyProperties(center: LatLng) {
+        val radius = 5000 // 5km in meters
+        val centerLocation = Location("").apply {
+            latitude = center.latitude
+            longitude = center.longitude
         }
 
-        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-            if (location != null) {
-                val userLatLng = LatLng(location.latitude, location.longitude)
-                val userLocation = Location("").apply {
-                    latitude = userLatLng.latitude
-                    longitude = userLatLng.longitude
-                }
+        firestore.collection("locations")
+            .get()
+            .addOnSuccessListener { documents ->
+                for (document in documents) {
+                    val geoPoint = document.getGeoPoint("location")
+                    if (geoPoint != null) {
+                        val propertyLocation = Location("").apply {
+                            latitude = geoPoint.latitude
+                            longitude = geoPoint.longitude
+                        }
 
-                firestore.collection("locations")
-                    .get()
-                    .addOnSuccessListener { documents ->
-                        if (!documents.isEmpty) {
-                            var firstLatLng: LatLng? = null
-
-                            for (document in documents) {
-                                val geoPoint = document.getGeoPoint("location")
-                                if (geoPoint != null) {
-                                    val latitude = geoPoint.latitude
-                                    val longitude = geoPoint.longitude
-                                    val locationName = document.getString("name") ?: "Unknown Location"
-                                    val address = document.getString("address") ?: "No Address"
-                                    val price = document.getDouble("price")?.toString() ?: "No Price"
-
-                                    // Calculate distance from user location
-                                    val propertyLocation = Location("").apply {
-                                        this.latitude = latitude
-                                        this.longitude = longitude
-                                    }
-                                    val distanceInMeters = userLocation.distanceTo(propertyLocation)
-
-                                    // Only add marker if within 5 km (5000 meters)
-                                    if (distanceInMeters <= 5000) {
-                                        val location = LatLng(latitude, longitude)
-                                        map.addMarker(
-                                            MarkerOptions()
-                                                .position(location)
-                                                .title(locationName)
-                                                .snippet("Address: $address\nPrice: $price")
-                                        )
-
-                                        // Set the first location to move the camera to it
-                                        if (firstLatLng == null) {
-                                            firstLatLng = location
-                                        }
-                                    }
+                        if (centerLocation.distanceTo(propertyLocation) <= radius) {
+                            lifecycleScope.launch {
+                                if (shouldShowProperty(document)) {
+                                    addPropertyMarker(document)
                                 }
-                            }
-
-                            // Move the camera to the first location (if available)
-                            if (firstLatLng != null) {
-                                map.moveCamera(CameraUpdateFactory.newLatLngZoom(firstLatLng, 10f))
                             }
                         }
                     }
-                    .addOnFailureListener { exception ->
-                        Log.e("Firestore Error", "Error fetching locations: ", exception)
-                    }
+                }
             }
+    }
+
+    private suspend fun shouldShowProperty(document: DocumentSnapshot): Boolean {
+        val price = document.getDouble("price")?.toFloat() ?: 0f
+        val type = document.getString("type")?.lowercase() ?: ""
+
+        val budget = viewModel.budget.value
+        val isPG = viewModel.isPGSelected.value
+        val isRental = viewModel.isRentalSelected.value
+        val isHostel = viewModel.isHostelSelected.value
+
+        return price <= budget && when (type) {
+            "pg" -> isPG
+            "rental" -> isRental
+            "hostel" -> isHostel
+            else -> false
         }
+    }
+
+    private fun addPropertyMarker(document: DocumentSnapshot) {
+        val geoPoint = document.getGeoPoint("location") ?: return
+        val latLng = LatLng(geoPoint.latitude, geoPoint.longitude)
+        val name = document.getString("name") ?: "Unknown"
+        val address = document.getString("address") ?: "No Address"
+        val price = document.getDouble("price")?.toString() ?: "No Price"
+
+        map.addMarker(
+            MarkerOptions()
+                .position(latLng)
+                .title(name)
+                .snippet("Address: $address\nPrice: $price")
+        )
     }
 
     private fun getCurrentLocation() {
-        // Check if permissions are granted
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                LOCATION_PERMISSION_REQUEST_CODE
+            )
             return
         }
-        
-        try {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    val userLatLng = LatLng(location.latitude, location.longitude)
-                    map.addMarker(MarkerOptions().position(userLatLng).title("You are here"))
-                    map.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 15f))
-                }
-            }.addOnFailureListener { exception ->
-                Log.e("Location Error", "Error fetching current location: ", exception)
+
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            location?.let {
+                val latLng = LatLng(it.latitude, it.longitude)
+                map.addMarker(MarkerOptions().position(latLng).title("Your Location"))
+                map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
             }
-        } catch (e: SecurityException) {
-            Log.e("Permission Error", "Location permission not granted: ", e)
         }
     }
 
+    companion object {
+        private const val LOCATION_PERMISSION_REQUEST_CODE = 1
+    }
 }
 
 class CustomInfoWindowAdapter(private val context: Context) : GoogleMap.InfoWindowAdapter {
-
-    override fun getInfoContents(marker: Marker): View? {
+    override fun getInfoContents(marker: Marker): View {
         val view = LayoutInflater.from(context).inflate(R.layout.custom_info_window, null)
 
-        val locationName = view.findViewById<TextView>(R.id.location_name)
-        val locationAddress = view.findViewById<TextView>(R.id.location_address)
-        val locationPrice = view.findViewById<TextView>(R.id.location_price)
+        view.findViewById<TextView>(R.id.location_name).text = marker.title
 
-        locationName.text = marker.title
-
-        //ak
-        val snippet = marker.snippet
-        if (snippet != null) {
-            val parts = snippet.split("\n")
-            locationAddress.text = parts.getOrNull(0) ?: "No Address"
-            locationPrice.text = parts.getOrNull(1) ?: "No Price"
-        } else {
-            locationAddress.text = "No Address"
-            locationPrice.text = "No Price"
+        marker.snippet?.split("\n")?.let { parts ->
+            view.findViewById<TextView>(R.id.location_address).text = parts.getOrNull(0) ?: "No Address"
+            view.findViewById<TextView>(R.id.location_price).text = parts.getOrNull(1) ?: "No Price"
         }
-
-        // Split the snippet and handle potential IndexOutOfBoundsException
-//        val snippetParts = marker.snippet?.split("|") ?: listOf("", "")
-//        locationAddress.text = if (snippetParts.size > 0) snippetParts[0].trim() else "No Address"
-//        locationPrice.text = if (snippetParts.size > 1) snippetParts[1].trim() else "No Price"
 
         return view
     }
 
-    override fun getInfoWindow(marker: Marker): View? {
-        return null // Use default window
-    }
+    override fun getInfoWindow(marker: Marker): View? = null
 }

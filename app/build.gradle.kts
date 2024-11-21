@@ -12,6 +12,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
+
         applicationId = "com.example.mp3"
         minSdk = 24
         targetSdk = 35
@@ -60,6 +61,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -123,7 +125,19 @@ dependencies {
 
     implementation("androidx.navigation:navigation-compose:2.8.4") // Use the latest version
 
+        implementation ("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
+        implementation ("com.google.android.material:material:1.9.0")
+        implementation ("androidx.compose.ui:ui-viewbinding:1.5.4")
+
+
+        implementation ("androidx.compose.material3:material3:1.1.2")
+           implementation ("androidx.compose.material:material-icons-extended:1.5.4")
+        implementation ("androidx.compose.runtime:runtime-livedata:1.5.4")
+        implementation ("androidx.compose.animation:animation:1.5.4")
+
+
     //heheuserinterkeliyetha
+
 //    implementation ('com.google.android.libraries.maps:maps:3.1.0')
 //    implementation ('com.google.maps.android:maps-compose:2.2.0')
 //    implementation ("androidx.compose.material:material:1.3.1")

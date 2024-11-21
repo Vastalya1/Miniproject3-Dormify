@@ -1141,7 +1141,7 @@ fun Amenities(navController: NavController, propertyFormState: PropertyFormState
 
 @Preview(showBackground = true)
 @Composable
-fun Visuals() {
+fun vastalya() {
     MP3Theme {
         val navController=rememberNavController()
 

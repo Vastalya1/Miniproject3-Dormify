@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,10 +40,22 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.mp3.ui.theme.MP3Theme
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.firebase.FirebaseApp
+
+
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.StateFlow
+import androidx.compose.runtime.collectAsState
 
 //import kotlinx.coroutines.flow.internal.NoOpContinuation.context
 //import kotlin.coroutines.jvm.internal.CompletedContinuation.context
@@ -55,12 +69,19 @@ import com.google.firebase.FirebaseApp
 
 
 class MainActivity : ComponentActivity() {
+    private lateinit var placesClient: PlacesClient
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Initialize Firebase
         FirebaseApp.initializeApp(this)
+
+        // Initialize Places API
+        if (!Places.isInitialized()) {
+            Places.initialize(applicationContext, "AIzaSyBQi0RBXJizKfLefM-4qYvv7x7-B8UbiCU")
+        }
+        placesClient = Places.createClient(this)
 
         val mapintent = Intent(this, MapsActivity::class.java)
         val composableKey = intent.getStringExtra("composable_key")
@@ -89,15 +110,171 @@ class MainActivity : ComponentActivity() {
             }
 
 
-            "UserHomeScreen" -> startActivity(mapintent)
+            "UserHomeScreen" ->  {
+            setContent {
+                MP3Theme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        val viewModel: UserViewModel = viewModel(
+                            factory = UserViewModelFactory(placesClient)
+                        )
+                        // Observe location updates using LaunchedEffect
+                        val selectedLocationLatLng by viewModel.selectedLocationLatLng.collectAsState()
+                        LaunchedEffect(selectedLocationLatLng) {
+                            selectedLocationLatLng?.let { latLng ->
+                                val intent = Intent(this@MainActivity, MapsActivity::class.java).apply {
+                                    putExtra("latitude", latLng.latitude)
+                                    putExtra("longitude", latLng.longitude)
+                                    putExtra("budget", viewModel.budget.value.toInt())
+                                    putExtra("isPG", viewModel.isPGSelected.value)
+                                    putExtra("isRental", viewModel.isRentalSelected.value)
+                                    putExtra("isHostel", viewModel.isHostelSelected.value)
+                                }
+                                startActivity(intent)
+                            }
+                        }
+
+                        UserPage(
+                            viewModel = viewModel,
+                            context = this@MainActivity
+                        )
+                    }
+                }
+            } }
+
+
 
             else -> setContent {
                 MP3Theme {
                     val navController = rememberNavController()
-                    IndexPage(navController = navController)
+                    NavHost(
+                        navController = navController,
+                        startDestination = "index"
+                    ) {
+                        composable("index") {
+                            val context = LocalContext.current
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Button(
+                                    onClick = {
+                                        val intent = Intent(context, SignUpActivity::class.java)
+                                        context.startActivity(intent)
+                                    },
+                                    modifier = Modifier
+                                        .width(300.dp)
+                                        .height(48.dp)
+                                ) {
+                                    Text(text = "Owner", fontSize = 25.sp)
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        val intent = Intent(context, UserSignUpActivity::class.java)
+                                        context.startActivity(intent)
+                                    },
+                                    modifier = Modifier
+                                        .width(300.dp)
+                                        .height(48.dp)
+                                ) {
+                                    Text(text = "User", fontSize = 25.sp)
+                                }
+                            }
+                        }
+
+                        composable("login") {
+                            var username by remember { mutableStateOf("") }
+                            var password by remember { mutableStateOf("") }
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Login Page",
+                                    fontSize = 40.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(3, 169, 244, 255)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                OutlinedTextField(
+                                    value = username,
+                                    onValueChange = { username = it },
+                                    label = { Text("Username") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                OutlinedTextField(
+                                    value = password,
+                                    onValueChange = { password = it },
+                                    label = { Text("Password") },
+                                    visualTransformation = PasswordVisualTransformation(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { navController.navigate("listProperty") },
+                                    modifier = Modifier.width(200.dp)
+                                ) {
+                                    Text(text = "Login", fontSize = 25.sp)
+                                }
+                                Text(
+                                    text = "back",
+                                    fontSize = 20.sp,
+                                    textDecoration = TextDecoration.Underline,
+                                    modifier = Modifier
+                                        .clickable { navController.popBackStack() }
+                                        .padding(8.dp)
+                                )
+                            }
+                        }
+
+                        composable("userPage") {
+                            val context = LocalContext.current
+                            val viewModel: UserViewModel = viewModel(
+                                factory = UserViewModelFactory(placesClient)
+                            )
+
+                            // Observe location updates
+                            val selectedLocationLatLng by viewModel.selectedLocationLatLng.collectAsState()
+
+                            // When location is selected, launch MapsActivity
+                            LaunchedEffect(selectedLocationLatLng) {
+                                selectedLocationLatLng?.let { latLng ->
+                                    val intent = Intent(context, MapsActivity::class.java).apply {
+                                        putExtra("latitude", latLng.latitude)
+                                        putExtra("longitude", latLng.longitude)
+                                        putExtra("budget", viewModel.budget.value.toInt())
+                                        putExtra("isPG", viewModel.isPGSelected.value)
+                                        putExtra("isRental", viewModel.isRentalSelected.value)
+                                        putExtra("isHostel", viewModel.isHostelSelected.value)
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            }
+
+                            UserPage(
+                                viewModel = viewModel,
+                                context = context
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
 
 //        setContent {
 //            MP3Theme {
@@ -148,7 +325,7 @@ class MainActivity : ComponentActivity() {
 //        }
 //    }
 
-    }
+
 
 
     @Composable
@@ -321,4 +498,3 @@ class MainActivity : ComponentActivity() {
 
         }
     }
-}
