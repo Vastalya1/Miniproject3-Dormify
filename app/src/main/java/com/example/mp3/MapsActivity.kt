@@ -158,10 +158,21 @@ class CustomInfoWindowAdapter(private val context: Context) : GoogleMap.InfoWind
 
         locationName.text = marker.title
 
+        //ak
+        val snippet = marker.snippet
+        if (snippet != null) {
+            val parts = snippet.split("\n")
+            locationAddress.text = parts.getOrNull(0) ?: "No Address"
+            locationPrice.text = parts.getOrNull(1) ?: "No Price"
+        } else {
+            locationAddress.text = "No Address"
+            locationPrice.text = "No Price"
+        }
+
         // Split the snippet and handle potential IndexOutOfBoundsException
-        val snippetParts = marker.snippet?.split("|") ?: listOf("", "")
-        locationAddress.text = if (snippetParts.size > 0) snippetParts[0].trim() else "No Address"
-        locationPrice.text = if (snippetParts.size > 1) snippetParts[1].trim() else "No Price"
+//        val snippetParts = marker.snippet?.split("|") ?: listOf("", "")
+//        locationAddress.text = if (snippetParts.size > 0) snippetParts[0].trim() else "No Address"
+//        locationPrice.text = if (snippetParts.size > 1) snippetParts[1].trim() else "No Price"
 
         return view
     }
