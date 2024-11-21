@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +72,58 @@ import java.util.Calendar
 import com.example.mp3.AmenitiesDataStore.getAmenitiesData
 import com.example.mp3.AmenitiesDataStore.saveAmenitiesData
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.GeoPoint
+import android.location.Geocoder
+import kotlinx.coroutines.launch
+import java.util.Locale
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+
+private suspend fun getCoordinatesFromAddress(address: String, context: Context): GeoPoint? {
+    Log.d("GeocodingDebug", "Starting geocoding for address: $address")
+
+    return try {
+        val geocoder = Geocoder(context, Locale.getDefault())
+
+        // Different implementation based on Android version
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            // For Android 13 and above
+            var geoPoint: GeoPoint? = null
+
+            geocoder.getFromLocationName(address, 1) { addresses ->
+                Log.d("GeocodingDebug", "Addresses found: ${addresses.size}")
+                if (addresses.isNotEmpty()) {
+                    geoPoint = GeoPoint(addresses[0].latitude, addresses[0].longitude)
+                    Log.d("GeocodingDebug", "Location found: lat=${addresses[0].latitude}, lng=${addresses[0].longitude}")
+                }
+            }
+
+            // Wait a bit for the result
+            kotlinx.coroutines.delay(1000)
+            geoPoint
+
+        } else {
+            // For Android 12 and below
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocationName(address, 1)
+            Log.d("GeocodingDebug", "Addresses found: ${addresses?.size}")
+
+            if (!addresses.isNullOrEmpty()) {
+                GeoPoint(addresses[0].latitude, addresses[0].longitude).also {
+                    Log.d("GeocodingDebug", "Location found: lat=${it.latitude}, lng=${it.longitude}")
+                }
+            } else {
+                Log.e("GeocodingDebug", "No addresses found")
+                null
+            }
+        }
+    } catch (e: Exception) {
+        Log.e("GeocodingDebug", "Error getting coordinates: ${e.message}", e)
+        null
+    }
+}
 
 class MyApp : Application() {
     override fun onCreate() {
@@ -167,7 +220,6 @@ fun RentalAppScreen(
     onAddPropertyClick: () -> Unit,
     onInterestedClick: (Property) -> Unit
 ) {
-    // State to hold owner's properties
     var ownerProperties by remember { mutableStateOf<List<PropertyFormState>>(emptyList()) }
     val currentUser = FirebaseAuth.getInstance().currentUser
     val db = FirebaseFirestore.getInstance()
@@ -186,26 +238,33 @@ fun RentalAppScreen(
                     val propertyList = mutableListOf<PropertyFormState>()
                     if (snapshot != null) {
                         for (doc in snapshot.documents) {
-                            // Convert Firestore document to PropertyFormState
+                            // Get the address map from the document
                             val address = doc.get("address") as? Map<*, *>
+                            
                             val property = PropertyFormState(
                                 id = doc.id,
-                                propertyType = doc.getString("propertyType") ?: "Flat",
-                                bhk = doc.getString("bhk") ?: "1 RK",
+                                propertyType = doc.getString("propertyType") ?: "",
+                                bhk = doc.getString("bhk") ?: "",
                                 buildUpArea = doc.getString("buildUpArea") ?: "",
                                 furnishType = doc.getString("furnishType") ?: "",
                                 monthlyRent = doc.getString("monthlyRent") ?: "",
                                 availableFrom = doc.getString("availableFrom") ?: "",
                                 securityDeposit = doc.getString("securityDeposit") ?: "",
-                                addressLine1 = doc.getString("address.addressLine1") ?: "",
-                                addressLine2 = doc.getString("address.addressLine2") ?: "",
-                                city = doc.getString("address.city") ?: "",
-                                state = doc.getString("address.state") ?: "",
-                                pinCode = doc.getString("address.pinCode") ?: "",
-                                country = doc.getString("address.country") ?: "",
-                                ownerId = doc.getString("ownerId") ?: "",
-                                ownerEmail = doc.getString("ownerEmail") ?: ""
+                                // Correctly access address fields from the address map
+                                addressLine1 = address?.get("addressLine1") as? String ?: "",
+                                addressLine2 = address?.get("addressLine2") as? String ?: "",
+                                city = address?.get("city") as? String ?: "",
+                                state = address?.get("state") as? String ?: "",
+                                pinCode = address?.get("pinCode") as? String ?: "",
+                                country = address?.get("country") as? String ?: "",
+                                ownerId = currentUser.uid,
+                                ownerEmail = currentUser.email ?: ""
                             )
+                            
+                            // Log the address and location for debugging
+                            Log.d("Firebase", "Address: $address")
+                            Log.d("Firebase", "Location: ${address?.get("location")}")
+                            
                             propertyList.add(property)
                         }
                     }
@@ -327,8 +386,19 @@ data class Features(
 
 
 @Composable
-fun ListProperty(navController: NavController, propertyFormState: PropertyFormState){
+fun ListProperty(navController: NavController, propertyFormState: PropertyFormState) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val currentUser = FirebaseAuth.getInstance().currentUser
     val focusManager = LocalFocusManager.current
+
+    var addressLine1 by remember { mutableStateOf(propertyFormState.addressLine1) }
+    var addressLine2 by remember { mutableStateOf(propertyFormState.addressLine2) }
+    var city by remember { mutableStateOf(propertyFormState.city) }
+    var state by remember { mutableStateOf(propertyFormState.state) }
+    var pinCode by remember { mutableStateOf(propertyFormState.pinCode) }
+    var country by remember { mutableStateOf(propertyFormState.country) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -788,57 +858,141 @@ fun ListProperty(navController: NavController, propertyFormState: PropertyFormSt
 //        }
         val addr = addressLine1 + addressLine2 + city + state + pinCode + country
 
-        Button(onClick = {
+//        Button(onClick = {
+//            Log.d("PropertyDebug", """
+//        Address Line 1: ${propertyFormState.addressLine1}
+//        Address Line 2: ${propertyFormState.addressLine2}
+//        City: ${propertyFormState.city}
+//        State: ${propertyFormState.state}
+//        Pin Code: ${propertyFormState.pinCode}
+//        Country: ${propertyFormState.country}
+//    """.trimIndent())
+//            if (currentUser != null) {
+//                scope.launch {
+//                    val db = FirebaseFirestore.getInstance()
+//                    val amenitiesData = getAmenitiesData()
+//
+//                    // Create full address for geocoding
+//                    val fullAddress = buildString {
+//                        append(propertyFormState.addressLine1)
+//                        if (propertyFormState.addressLine2.isNotEmpty()) {
+//                            append(", ${propertyFormState.addressLine2}")
+//                        }
+//                        append(", $city")
+//                        append(", $state")
+//                        append(", $pinCode")
+//                        append(", $country")
+//                    }
+//
+//                    Log.d("Address", "Full address: $fullAddress")
+//
+//                    // Get coordinates
+//                    val geoPoint = getCoordinatesFromAddress(fullAddress, context)
+//                    Log.d("Geocoding", "GeoPoint result: $geoPoint")
+//
+//                    val propertyData = hashMapOf(
+//                        "propertyType" to propertyFormState.propertyType,
+//                        "bhk" to propertyFormState.bhk,
+//                        "buildUpArea" to propertyFormState.buildUpArea,
+//                        "furnishType" to propertyFormState.furnishType,
+//                        "monthlyRent" to propertyFormState.monthlyRent,
+//                        "availableFrom" to propertyFormState.availableFrom,
+//                        "securityDeposit" to propertyFormState.securityDeposit,
+//                        "address" to mapOf(
+//                            "addressLine1" to propertyFormState.addressLine1,
+//                            "addressLine2" to propertyFormState.addressLine2,
+//                            "city" to propertyFormState.city,
+//                            "state" to propertyFormState.state,
+//                            "pinCode" to propertyFormState.pinCode,
+//                            "country" to propertyFormState.country,
+//                            "location" to geoPoint  // Add GeoPoint here
+//                        ),
+//                        "amenities" to amenitiesData,
+//                        "timestamp" to com.google.firebase.Timestamp.now()
+//                    )
+//
+//                    // Save to Firestore
+//                    db.collection("properties")
+//                        .document(currentUser.uid)
+//                        .collection("ownerProperties")
+//                        .add(propertyData)
+//                        .addOnSuccessListener { documentReference ->
+//                            Log.d("Firebase", "Property added with ID: ${documentReference.id}")
+//                            navController.navigate("home")
+//                        }
+//                        .addOnFailureListener { e ->
+//                            Log.w("Firebase", "Error adding property", e)
+//                        }
+//                }
+//            }
+//        }) {
+//            Text("Add Property")
+//        }
+        Button(
+            onClick = {
+                if (currentUser != null) {
+                    scope.launch {
+                        val fullAddress = buildString {
+                            append(addressLine1)
+                            if (addressLine2.isNotEmpty()) {
+                                append(", $addressLine2")
+                            }
+                            append(", $city")
+                            append(", $state")
+                            append(", $pinCode")
+                            append(", $country")
+                        }
 
-            val currentUser = FirebaseAuth.getInstance().currentUser
+                        val geoPoint = getCoordinatesFromAddress(fullAddress, context)
 
-            if (currentUser != null) {
-                val db = FirebaseFirestore.getInstance()
-                // Get the stored amenities data
-                val amenitiesData = getAmenitiesData()
+                        // Format the location string
+                        val formattedLocation = if (geoPoint != null) {
+                            "[${geoPoint.latitude}° N, ${geoPoint.longitude}° E]"
+                        } else {
+                            null
+                        }
 
-                // Create a map of the property data with owner's UID
-                val propertyData = hashMapOf(
-//                    "ownerId" to currentUser.uid,  // Add the owner's UID
-//                    "ownerEmail" to currentUser.email,  // Optionally add owner's email
-                    "propertyType" to propertyType.value,
-                    "bhk" to bhk.value,
-                    "buildUpArea" to buildUpArea,
-                    "furnishType" to furnishType.value,
-                    "monthlyRent" to monthlyRent,
-                    "availableFrom" to selectedDate,
-                    "securityDeposit" to if (securityDeposit == "Custom") customValue else securityDeposit,
-                    "address" to mapOf(
-                        "addressLine1" to addressLine1,
-                        "addressLine2" to addressLine2,
-                        "city" to city,
-                        "state" to state,
-                        "pinCode" to pinCode,
-                        "country" to country
-                    ),
-                    "amenities" to amenitiesData,
-                    "timestamp" to com.google.firebase.Timestamp.now()
-                )
+                        val propertyData = hashMapOf(
+                            "propertyType" to propertyFormState.propertyType,
+                            "bhk" to propertyFormState.bhk,
+                            "buildUpArea" to propertyFormState.buildUpArea,
+                            "furnishType" to propertyFormState.furnishType,
+                            "monthlyRent" to propertyFormState.monthlyRent,
+                            "availableFrom" to propertyFormState.availableFrom,
+                            "securityDeposit" to propertyFormState.securityDeposit,
+                            "address" to mapOf(
+                                "addressLine1" to addressLine1,
+                                "addressLine2" to addressLine2,
+                                "city" to city,
+                                "state" to state,
+                                "pinCode" to pinCode,
+                                "country" to country,
+                                "location" to formattedLocation  // Only store the formatted string
+                            ),
+                            "amenities" to getAmenitiesData(),
+                            "timestamp" to com.google.firebase.Timestamp.now(),
+                            "ownerId" to currentUser.uid,
+                            "ownerEmail" to (currentUser.email ?: "")
+                        )
 
-                // Add the property to Firestore under the owner's properties collection
-                db.collection("properties")
-                    .document(currentUser.uid)  // Create a document with owner's UID
-                    .collection("ownerProperties")    // Create a subcollection for properties
-                    .add(propertyData)
-                    .addOnSuccessListener { documentReference ->
-                        Log.d("Firebase", "Property added with ID: ${documentReference.id}")
-                        navController.navigate("home")
+                        // Save to Firestore
+                        FirebaseFirestore.getInstance()
+                            .collection("properties")
+                            .document(currentUser.uid)
+                            .collection("ownerProperties")
+                            .add(propertyData)
+                            .addOnSuccessListener { documentReference ->
+                                Log.d("Firebase", "Property added with ID: ${documentReference.id}")
+                                navController.navigate("home")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("Firebase", "Error adding property", e)
+                            }
                     }
-                    .addOnFailureListener { e ->
-                        Log.w("Firebase", "Error adding property", e)
-                    }
-            } else {
-                // Handle case where user is not logged in
-                Log.w("Firebase", "No user is signed in")
-                // Optionally navigate to login screen or show error message
+                }
             }
-        }) {
-            Text("Add Property")
+        ) {
+            Text("Save Property")
         }
 
     }
