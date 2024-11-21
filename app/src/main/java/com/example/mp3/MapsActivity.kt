@@ -17,6 +17,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
@@ -94,11 +95,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                                     // Only add marker if within 5 km (5000 meters)
                                     if (distanceInMeters <= 5000) {
                                         val location = LatLng(latitude, longitude)
+                                        // Use a custom icon for the marker
+                                        //val markerIcon = BitmapDescriptorFactory.fromResource(R.drawable.marker) // Replace with your custom drawable
+
                                         map.addMarker(
                                             MarkerOptions()
                                                 .position(location)
                                                 .title(locationName)
                                                 .snippet("Address: $address\nPrice: $price")
+                                                .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker)) // Set the custom icon here
                                         )
 
                                         // Set the first location to move the camera to it
