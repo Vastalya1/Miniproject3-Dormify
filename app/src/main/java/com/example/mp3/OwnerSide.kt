@@ -1,8 +1,12 @@
 package com.example.mp3
 
 //import com.google.common.reflect.TypeToken
+// ... other imports ...
+
+import android.app.Application
 import android.app.DatePickerDialog
 import android.content.Context
+import android.util.Log
 import android.widget.DatePicker
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -30,13 +35,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -54,17 +60,60 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+//import com.example.mp3.AmenitiesDataStore.AmenitiesDataStore.saveAmenitiesData
 import com.example.mp3.ui.theme.MP3Theme
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.io.InputStreamReader
 import java.util.Calendar
+import com.example.mp3.AmenitiesDataStore.getAmenitiesData
+import com.example.mp3.AmenitiesDataStore.saveAmenitiesData
+import com.google.firebase.auth.FirebaseAuth
+
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        FirebaseApp.initializeApp(this)
+    }
+}
+
+fun getAmenitiesData(): HashMap<String, List<String>> {
+    return AmenitiesDataStore.getAmenitiesData()
+}
+
+fun saveAmenitiesData(data: HashMap<String, List<String>>) {
+    AmenitiesDataStore.saveAmenitiesData(data)
+}
 
 data class Property(
     val name: String,
     val interestedPeople: List<String>,
     val contactInfo: List<String> // Add contact info for interested people
 )
+
+data class PropertyFormState(
+    val id: String = "",  // Document ID
+    val name: String = "",
+    var propertyType: String = "Flat",
+    var bhk: String = "1 RK",
+    var buildUpArea: String = "",
+    var furnishType: String = "Fully Furnished",
+    var monthlyRent: String = "",
+    var availableFrom: String = "",
+    var securityDeposit: String = "",
+    var customSecurityValue: String = "",
+    var addressLine1: String = "",
+    var addressLine2: String = "",
+    var city: String = "",
+    var state: String = "",
+    var pinCode: String = "",
+    var country: String = "",
+    var ownerId: String = "",
+    var ownerEmail: String = ""
+)
+
 
 // Function to load countries from the JSON file
 suspend fun loadCountries(context: Context): List<String> {
@@ -78,7 +127,19 @@ suspend fun loadCountries(context: Context): List<String> {
 fun RentalAppNavHost(properties: List<Property>) {
     val navController = rememberNavController()
 
+    val propertyFormState = remember { PropertyFormState() }
+
+    //ak
+
     NavHost(navController = navController, startDestination = "home") {
+
+        //ak
+        composable("ListProperty") {
+            ListProperty(navController, propertyFormState)
+        }
+        composable("Amenities") {
+            Amenities(navController, propertyFormState)
+        }
         composable("home") {
             RentalAppScreen(
                 properties = properties,
@@ -95,8 +156,8 @@ fun RentalAppNavHost(properties: List<Property>) {
                 InterestedPeopleScreen(property = property, navController = navController)
             }
         }
-        composable("ListProperty") { ListProperty(navController) }
-        composable("Address") { Address(navController) }
+        composable("ListProperty") { ListProperty(navController = navController, propertyFormState = propertyFormState) }
+        composable("Amenities") { Amenities(navController = navController, propertyFormState = propertyFormState) }
     }
 }
 
@@ -106,11 +167,60 @@ fun RentalAppScreen(
     onAddPropertyClick: () -> Unit,
     onInterestedClick: (Property) -> Unit
 ) {
+    // State to hold owner's properties
+    var ownerProperties by remember { mutableStateOf<List<PropertyFormState>>(emptyList()) }
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val db = FirebaseFirestore.getInstance()
+
+    // Fetch properties for current owner
+    LaunchedEffect(Unit) {
+        if (currentUser != null) {
+            db.collection("owners")
+                .document(currentUser.uid)
+                .collection("properties")
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        Log.w("Firebase", "Listen failed.", e)
+                        return@addSnapshotListener
+                    }
+                    val propertyList = mutableListOf<PropertyFormState>()
+                    if (snapshot != null) {
+                        for (doc in snapshot.documents) {
+                            // Convert Firestore document to PropertyFormState
+                            val property = PropertyFormState(
+                                id = doc.id,
+                                propertyType = doc.getString("propertyType") ?: "Flat",
+                                bhk = doc.getString("bhk") ?: "1 RK",
+                                buildUpArea = doc.getString("buildUpArea") ?: "",
+                                furnishType = doc.getString("furnishType") ?: "",
+                                monthlyRent = doc.getString("monthlyRent") ?: "",
+                                availableFrom = doc.getString("availableFrom") ?: "",
+                                securityDeposit = doc.getString("securityDeposit") ?: "",
+                                addressLine1 = doc.getString("address.addressLine1") ?: "",
+                                addressLine2 = doc.getString("address.addressLine2") ?: "",
+                                city = doc.getString("address.city") ?: "",
+                                state = doc.getString("address.state") ?: "",
+                                pinCode = doc.getString("address.pinCode") ?: "",
+                                country = doc.getString("address.country") ?: "",
+                                ownerId = doc.getString("ownerId") ?: "",
+                                ownerEmail = doc.getString("ownerEmail") ?: ""
+                            )
+                            propertyList.add(property)
+                        }
+                    }
+                    ownerProperties = propertyList
+                }
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        if (currentUser == null) {
+            Text("Please sign in to view your properties")
+            return@Column
+        }
         Button(
             onClick = onAddPropertyClick,
             modifier = Modifier
@@ -202,8 +312,20 @@ fun InterestedPeopleScreen(property: Property, navController: NavHostController)
     }
 }
 
+data class Features(
+    val propertyType: String,
+    val bhk: String,
+    val buildUpArea: String,
+    val furnishType: String,
+    val monthlyRent: String,
+    val availableFrom: String,
+    val securityDeposit: String,
+    val address: String
+)
+
+
 @Composable
-fun ListProperty(navController: NavController){
+fun ListProperty(navController: NavController, propertyFormState: PropertyFormState){
     val focusManager = LocalFocusManager.current
     Column(
         modifier = Modifier
@@ -229,7 +351,7 @@ fun ListProperty(navController: NavController){
             color = Color(0, 0, 0, 255)
         )
 
-        val propertyType = remember { mutableStateOf("Flat") }
+        val propertyType = remember { mutableStateOf(propertyFormState.propertyType) }
         val propertyTypeOptions = listOf("Flat", "PG", "Hostel")
 
 
@@ -271,7 +393,7 @@ fun ListProperty(navController: NavController){
             color = Color(0, 0, 0, 255)
         )
 
-        val bhk = remember { mutableStateOf("1 RK") }
+        val bhk = remember { mutableStateOf(propertyFormState.bhk) }
         val bhkOptions = listOf("1 RK", "1 BHK", "2 BHK", "3 BHK","3+ BHK")
 
 
@@ -313,7 +435,7 @@ fun ListProperty(navController: NavController){
 //            fontSize = 20.sp,
 //
 //        )
-        var buildUpArea by remember { mutableStateOf("") }
+        var buildUpArea by remember { mutableStateOf(propertyFormState.buildUpArea) }
 
         OutlinedTextField(
             value = buildUpArea,
@@ -344,7 +466,7 @@ fun ListProperty(navController: NavController){
             color = Color(0, 0, 0, 255)
         )
 
-        val furnishType = remember { mutableStateOf("Fully Furnished") }
+        val furnishType = remember { mutableStateOf(propertyFormState.furnishType) }
         val furnishOptions = listOf("Fully Furnished", "Semi Furnished", "Unfurnished")
 
         Row(
@@ -390,7 +512,7 @@ fun ListProperty(navController: NavController){
         )
 
         //monthly rent
-        var monthlyRent by remember { mutableStateOf("") }
+        var monthlyRent by remember { mutableStateOf(propertyFormState.monthlyRent) }
         OutlinedTextField(
             value = monthlyRent,
             onValueChange = { monthlyRent = it },
@@ -463,7 +585,7 @@ fun ListProperty(navController: NavController){
 
 
         //security deposit
-        var securityDeposit by remember { mutableStateOf("") }
+        var securityDeposit by remember { mutableStateOf(propertyFormState.securityDeposit) }
         var customValue by remember { mutableStateOf("") }
         val options = listOf("None", "1 month", "2 months", "Custom")
         Column {
@@ -530,36 +652,6 @@ fun ListProperty(navController: NavController){
                 )
             }
         }
-
-        Button(onClick = { navController.navigate("Address") },
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
-                .height(56.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(103, 58, 183, 255))
-                .border(
-                    width = 2.dp,
-                    color = Color.White,
-                    shape = RoundedCornerShape(8.dp)
-                )
-        ) {
-            Text("Next")
-        }
-    }
-
-}
-
-@Composable
-fun Address(navController: NavController) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
         // State variables for address inputs
         var addressLine1 by remember { mutableStateOf("") }
         var addressLine2 by remember { mutableStateOf("") }
@@ -571,9 +663,11 @@ fun Address(navController: NavController) {
         // Focus manager to control focus
         val focusManager = LocalFocusManager.current
 
+        Spacer(modifier = Modifier.height(8.dp))
+
         Text(text = "Address",
-        fontSize = 20.sp,
-        fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
         )
         // Address input fields
         OutlinedTextField(
@@ -666,29 +760,393 @@ fun Address(navController: NavController) {
                 }
             )
         )
+        LaunchedEffect(propertyType.value) {
+            propertyFormState.propertyType = propertyType.value
+        }
+        LaunchedEffect(bhk.value) {
+            propertyFormState.bhk = bhk.value
+        }
+        LaunchedEffect(buildUpArea) {
+            propertyFormState.buildUpArea = buildUpArea
+        }
+        LaunchedEffect(furnishType.value) {
+            propertyFormState.furnishType = furnishType.value
+        }
+        LaunchedEffect(monthlyRent) {
+            propertyFormState.monthlyRent = monthlyRent
+        }
+        LaunchedEffect(selectedDate) {
+            propertyFormState.availableFrom = selectedDate
+        }
+        LaunchedEffect(securityDeposit) {
+            propertyFormState.securityDeposit = securityDeposit
+        }
+//        LaunchedEffect(customValue) {
+//            propertyFormState.customSecurityValue = customValue
+//        }
+        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
 
-        // Next button
+        Button(onClick = {
+            val db = FirebaseFirestore.getInstance()
+            val currentUser = FirebaseAuth.getInstance().currentUser
+
+            if (currentUser != null) {
+                // Get the stored amenities data
+                val amenitiesData = getAmenitiesData()
+
+                // Create a map of the property data with owner's UID
+                val propertyData = hashMapOf(
+                    "ownerId" to currentUser.uid,  // Add the owner's UID
+                    "ownerEmail" to currentUser.email,  // Optionally add owner's email
+                    "propertyType" to propertyType.value,
+                    "bhk" to bhk.value,
+                    "buildUpArea" to buildUpArea,
+                    "furnishType" to furnishType.value,
+                    "monthlyRent" to monthlyRent,
+                    "availableFrom" to selectedDate,
+                    "securityDeposit" to if (securityDeposit == "Custom") customValue else securityDeposit,
+                    "address" to mapOf(
+                        "addressLine1" to addressLine1,
+                        "addressLine2" to addressLine2,
+                        "city" to city,
+                        "state" to state,
+                        "pinCode" to pinCode,
+                        "country" to country
+                    ),
+                    "amenities" to amenitiesData,
+                    "timestamp" to com.google.firebase.Timestamp.now()
+                )
+
+                // Add the property to Firestore under the owner's properties collection
+                db.collection("owners")
+                    .document(currentUser.uid)  // Create a document with owner's UID
+                    .collection("properties")    // Create a subcollection for properties
+                    .add(propertyData)
+                    .addOnSuccessListener { documentReference ->
+                        Log.d("Firebase", "Property added with ID: ${documentReference.id}")
+                        navController.navigate("home")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.w("Firebase", "Error adding property", e)
+                    }
+            } else {
+                // Handle case where user is not logged in
+                Log.w("Firebase", "No user is signed in")
+                // Optionally navigate to login screen or show error message
+            }
+        }) {
+            Text("Add Property")
+        }
+
+    }
+
+}
+
+@Composable
+fun Amenities(navController: NavController, propertyFormState: PropertyFormState) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // Make the entire page scrollable
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Flat furnishings
+        Text(
+            text = "Flat Furnishings",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(75, 81, 83, 255)
+        )
+
+        val flatFurnishingOptions = listOf(
+            "Dining Table", "Washing Machine", "Sofa", "Stove", "Microwave",
+            "Fridge", "Water Purifier", "Gas Pipeline", "Bed", "TV", "Study Table", "Cupboard", "Geyser"
+        )
+        val selectedFlatFurnishingOptions = remember {
+            mutableStateMapOf<String, Boolean>().apply {
+                flatFurnishingOptions.forEach { put(it, false) }
+            }
+        }
+
+
+        // Display flat furnishing options in rows of 3
+        flatFurnishingOptions.chunked(3).forEach { rowItems ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { option ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f) // Distribute evenly across the row
+                            .height(80.dp) // Ensure consistent height
+                            .width(100.dp) // Ensure consistent width
+                            .clickable {
+                                selectedFlatFurnishingOptions[option] =
+                                    !(selectedFlatFurnishingOptions[option] ?: false)
+                            }
+                            .border(
+                                width = 2.dp,
+                                color = if (selectedFlatFurnishingOptions[option] == true) Color.Blue else Color.Gray,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .background(
+                                color = if (selectedFlatFurnishingOptions[option] == true) Color.Blue.copy(
+                                    alpha = 0.2f
+                                ) else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = option,
+                            fontSize = 16.sp,
+                            color = if (selectedFlatFurnishingOptions[option] == true) Color.Blue else Color.Black,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2
+                        )
+                    }
+                }
+            }
+        }
+
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Society amenities
+        Text(
+            text = "Society Amenities",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(75, 81, 83, 255)
+        )
+
+        val societyAmenitiesOptions = listOf(
+            "Lift", "CCTV", "GYM", "Garden", "Swimming Pool",
+            "Gated Community", "Regular Water Supply", "Power Backup", "Pet Allowed"
+        )
+        val societyAmenitiesSelectedOptions = remember {
+            mutableStateMapOf<String, Boolean>().apply {
+                societyAmenitiesOptions.forEach { put(it, false) }
+            }
+        }
+
+        // Display society amenities options in rows of 3
+        societyAmenitiesOptions.chunked(3).forEach { rowItems ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { option ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f) // Distribute evenly across the row
+                            .height(100.dp)
+                            .clickable {
+                                societyAmenitiesSelectedOptions[option] =
+                                    !(societyAmenitiesSelectedOptions[option] ?: false)
+                            }
+                            .border(
+                                width = 2.dp,
+                                color = if (societyAmenitiesSelectedOptions[option] == true) Color.Blue else Color.Gray,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .background(
+                                color = if (societyAmenitiesSelectedOptions[option] == true) Color.Blue.copy(
+                                    alpha = 0.2f
+                                ) else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = option,
+                            fontSize = 16.sp,
+                            color = if (societyAmenitiesSelectedOptions[option] == true) Color.Blue else Color.Black,
+                            textAlign = TextAlign.Center,
+                            maxLines = 3
+                        )
+                    }
+                }
+            }
+        }
+
         Button(
             onClick = {
-                navController.navigate("") // Replace "nextScreen" with your actual route
-            },
+                    // Filter selected amenities
+                    val selectedFlatFurnishings = selectedFlatFurnishingOptions
+                        .filter { it.value }
+                        .keys
+                        .toList()
+
+                    val selectedSocietyAmenities = societyAmenitiesSelectedOptions
+                        .filter { it.value }
+                        .keys
+                        .toList()
+
+                    // Store the selections in SharedPreferences or similar storage
+                    val amenitiesData = hashMapOf(
+                        "flatFurnishings" to selectedFlatFurnishings,
+                        "societyAmenities" to selectedSocietyAmenities
+                    )
+
+                    // Store in temporary storage (you'll need to implement this)
+                    saveAmenitiesData(amenitiesData)
+                navController.navigate("listProperty") },
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp) // Add some padding for spacing
+                .padding(16.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Next")
+            Text(
+                text = "Save",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
-        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
     }
+
+
 }
+
+//@Composable
+//fun Address(navController: NavController, bhk: String) {
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(16.dp)
+//            .verticalScroll(rememberScrollState()),
+//        verticalArrangement = Arrangement.Center,
+//        horizontalAlignment = Alignment.CenterHorizontally
+//    ) {
+//        // State variables for address inputs
+//        var addressLine1 by remember { mutableStateOf("") }
+//        var addressLine2 by remember { mutableStateOf("") }
+//        var city by remember { mutableStateOf("") }
+//        var state by remember { mutableStateOf("") }
+//        var pinCode by remember { mutableStateOf("") }
+//        var country by remember { mutableStateOf("") }
+//
+//        // Focus manager to control focus
+//        val focusManager = LocalFocusManager.current
+//
+//        Text(text = "Address",
+//            fontSize = 20.sp,
+//            fontWeight = FontWeight.Bold,
+//        )
+//        // Address input fields
+//        OutlinedTextField(
+//            value = addressLine1,
+//            onValueChange = { addressLine1 = it },
+//            label = { Text("Address Line 1") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        OutlinedTextField(
+//            value = addressLine2,
+//            onValueChange = { addressLine2 = it },
+//            label = { Text("Address Line 2") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        OutlinedTextField(
+//            value = city,
+//            onValueChange = { city = it },
+//            label = { Text("City") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        OutlinedTextField(
+//            value = state,
+//            onValueChange = { state = it },
+//            label = { Text("State") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        OutlinedTextField(
+//            value = pinCode,
+//            onValueChange = { pinCode = it },
+//            label = { Text("Pin Code") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Next // Set the action to "Next"
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onNext = {
+//                    focusManager.moveFocus(FocusDirection.Down) // Move focus to the next field
+//                }
+//            )
+//        )
+//
+//        // Text field for country input
+//        OutlinedTextField(
+//            value = country,
+//            onValueChange = { country = it },
+//            label = { Text("Country") },
+//            modifier = Modifier.fillMaxWidth(),
+//            keyboardOptions = KeyboardOptions.Default.copy(
+//                imeAction = ImeAction.Done // Set the action to "Done" for the last field
+//            ),
+//            keyboardActions = KeyboardActions(
+//                onDone = {
+//                    focusManager.clearFocus() // Dismiss the keyboard when done
+//                }
+//            )
+//        )
+//
+//        val addr = addressLine1 + addressLine2 + city + state + pinCode + country
+//    }
+//}
 
 @Preview(showBackground = true)
 @Composable
 fun Visuals() {
     MP3Theme {
         val navController=rememberNavController()
-        Address(navController)
-    }
 
+        //Address(navController)
+        //ListProperty(navController)
+    }
 
 }
