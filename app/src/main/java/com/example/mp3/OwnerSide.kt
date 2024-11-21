@@ -175,9 +175,9 @@ fun RentalAppScreen(
     // Fetch properties for current owner
     LaunchedEffect(Unit) {
         if (currentUser != null) {
-            db.collection("owners")
+            db.collection("properties")
                 .document(currentUser.uid)
-                .collection("properties")
+                .collection("ownerProperties")
                 .addSnapshotListener { snapshot, e ->
                     if (e != null) {
                         Log.w("Firebase", "Listen failed.", e)
@@ -187,6 +187,7 @@ fun RentalAppScreen(
                     if (snapshot != null) {
                         for (doc in snapshot.documents) {
                             // Convert Firestore document to PropertyFormState
+                            val address = doc.get("address") as? Map<*, *>
                             val property = PropertyFormState(
                                 id = doc.id,
                                 propertyType = doc.getString("propertyType") ?: "Flat",
@@ -212,6 +213,7 @@ fun RentalAppScreen(
                 }
         }
     }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -787,17 +789,18 @@ fun ListProperty(navController: NavController, propertyFormState: PropertyFormSt
         val addr = addressLine1 + addressLine2 + city + state + pinCode + country
 
         Button(onClick = {
-            val db = FirebaseFirestore.getInstance()
+
             val currentUser = FirebaseAuth.getInstance().currentUser
 
             if (currentUser != null) {
+                val db = FirebaseFirestore.getInstance()
                 // Get the stored amenities data
                 val amenitiesData = getAmenitiesData()
 
                 // Create a map of the property data with owner's UID
                 val propertyData = hashMapOf(
-                    "ownerId" to currentUser.uid,  // Add the owner's UID
-                    "ownerEmail" to currentUser.email,  // Optionally add owner's email
+//                    "ownerId" to currentUser.uid,  // Add the owner's UID
+//                    "ownerEmail" to currentUser.email,  // Optionally add owner's email
                     "propertyType" to propertyType.value,
                     "bhk" to bhk.value,
                     "buildUpArea" to buildUpArea,
@@ -818,9 +821,9 @@ fun ListProperty(navController: NavController, propertyFormState: PropertyFormSt
                 )
 
                 // Add the property to Firestore under the owner's properties collection
-                db.collection("owners")
+                db.collection("properties")
                     .document(currentUser.uid)  // Create a document with owner's UID
-                    .collection("properties")    // Create a subcollection for properties
+                    .collection("ownerProperties")    // Create a subcollection for properties
                     .add(propertyData)
                     .addOnSuccessListener { documentReference ->
                         Log.d("Firebase", "Property added with ID: ${documentReference.id}")
