@@ -357,7 +357,6 @@ fun PropertyItem(property: PropertyFormState, onDelete: (String) -> Unit) {
             .padding(16.dp)
     ) {
         Text(text = "Property ID: ${property.id}", style = MaterialTheme.typography.bodyLarge)
-        //Text(text = "Name: ${property.name}", style = MaterialTheme.typography.bodyLarge)
         Text(text = "Type: ${property.propertyType}", style = MaterialTheme.typography.bodyLarge)
         Text(text = "BHK: ${property.bhk}", style = MaterialTheme.typography.bodyLarge)
         Text(text = "Build Up Area: ${property.buildUpArea}", style = MaterialTheme.typography.bodyLarge)
@@ -365,14 +364,17 @@ fun PropertyItem(property: PropertyFormState, onDelete: (String) -> Unit) {
         Text(text = "Monthly Rent: ${property.monthlyRent}", style = MaterialTheme.typography.bodyLarge)
         Text(text = "Available From: ${property.availableFrom}", style = MaterialTheme.typography.bodyLarge)
         Text(text = "Security Deposit: ${property.securityDeposit}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "Address Line 1: ${property.addressLine1}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "Address Line 2: ${property.addressLine2}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "City: ${property.city}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "State: ${property.state}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "Pin Code: ${property.pinCode}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "Country: ${property.country}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "Owner ID: ${property.ownerId}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "Owner Email: ${property.ownerEmail}", style = MaterialTheme.typography.bodyLarge)
+
+        // Combine address components into a single address string
+        val fullAddress = buildString {
+            append(property.addressLine1)
+            if (property.addressLine2.isNotEmpty()) {
+                append(", ${property.addressLine2}")
+            }
+            append(", ${property.city}, ${property.state}, ${property.pinCode}, ${property.country}")
+        }
+
+        Text(text = "Address: $fullAddress", style = MaterialTheme.typography.bodyLarge)
 
         // Display amenities
         Text(text = "Amenities:", style = MaterialTheme.typography.bodyLarge)
@@ -968,13 +970,7 @@ fun ListProperty(navController: NavController, propertyFormState: PropertyFormSt
 
                         val geoPoint = getCoordinatesFromAddress(fullAddress, context)
 
-                        // Format the location string
-                        val formattedLocation = if (geoPoint != null) {
-                            "[${geoPoint.latitude}° N, ${geoPoint.longitude}° E]"
-                        } else {
-                            null
-                        }
-
+                        
                         val propertyData = hashMapOf(
                             "propertyType" to propertyFormState.propertyType,
                             "bhk" to propertyFormState.bhk,
@@ -990,7 +986,7 @@ fun ListProperty(navController: NavController, propertyFormState: PropertyFormSt
                                 "state" to state,
                                 "pinCode" to pinCode,
                                 "country" to country,
-                                "location" to formattedLocation  // Only store the formatted string
+                                "location" to geoPoint  // Only store the formatted string
                             ),
                             "amenities" to getAmenitiesData(),
                             "timestamp" to com.google.firebase.Timestamp.now(),

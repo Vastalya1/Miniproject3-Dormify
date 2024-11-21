@@ -97,9 +97,9 @@ dependencies {
 
 
     // Firebase Firestore
-    implementation ("com.google.firebase:firebase-firestore-ktx:24.9.0")
+    implementation ("com.google.firebase:firebase-firestore-ktx:25.1.1")
 // Firebase Authentication (if needed)
-    implementation ("com.google.firebase:firebase-auth-ktx:22.1.0")
+    implementation ("com.google.firebase:firebase-auth-ktx:23.1.0")
 
 
     implementation("com.google.firebase:firebase-analytics")
