@@ -31,7 +31,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,6 +68,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.Calendar
 import java.util.Locale
 
@@ -145,7 +148,6 @@ data class Property(
 )
 data class PropertyFormState(
     val id: String = "",  // Document ID
-    val name: String = "",
     var propertyType: String = "Flat",
     var bhk: String = "1 RK",
     var buildUpArea: String = "",
@@ -161,7 +163,8 @@ data class PropertyFormState(
     var pinCode: String = "",
     var country: String = "",
     var ownerId: String = "",
-    var ownerEmail: String = ""
+    var ownerEmail: String = "",
+    var amenities: Map<String, List<String>> = emptyMap()
 )
 
 
@@ -200,7 +203,6 @@ fun RentalAppNavHost(properties: List<Property>) {
 fun RentalAppScreen(
     properties: List<Property>,
     onAddPropertyClick: () -> Unit,
-
 ) {
     var ownerProperties by remember { mutableStateOf<List<PropertyFormState>>(emptyList()) }
     val currentUser = FirebaseAuth.getInstance().currentUser
@@ -209,48 +211,30 @@ fun RentalAppScreen(
     // Fetch properties for current owner
     LaunchedEffect(Unit) {
         if (currentUser != null) {
-            db.collection("properties")
+            ownerProperties = db.collection("properties")
                 .document(currentUser.uid)
                 .collection("ownerProperties")
-                .addSnapshotListener { snapshot, e ->
-                    if (e != null) {
-                        Log.w("Firebase", "Listen failed.", e)
-                        return@addSnapshotListener
-                    }
-                    val propertyList = mutableListOf<PropertyFormState>()
-                    if (snapshot != null) {
-                        for (doc in snapshot.documents) {
-                            // Get the address map from the document
-                            val address = doc.get("address") as? Map<*, *>
-
-                            val property = PropertyFormState(
-                                id = doc.id,
-                                propertyType = doc.getString("propertyType") ?: "",
-                                bhk = doc.getString("bhk") ?: "",
-                                buildUpArea = doc.getString("buildUpArea") ?: "",
-                                furnishType = doc.getString("furnishType") ?: "",
-                                monthlyRent = doc.getString("monthlyRent") ?: "",
-                                availableFrom = doc.getString("availableFrom") ?: "",
-                                securityDeposit = doc.getString("securityDeposit") ?: "",
-                                // Correctly access address fields from the address map
-                                addressLine1 = address?.get("addressLine1") as? String ?: "",
-                                addressLine2 = address?.get("addressLine2") as? String ?: "",
-                                city = address?.get("city") as? String ?: "",
-                                state = address?.get("state") as? String ?: "",
-                                pinCode = address?.get("pinCode") as? String ?: "",
-                                country = address?.get("country") as? String ?: "",
-                                ownerId = currentUser.uid,
-                                ownerEmail = currentUser.email ?: ""
-                            )
-
-                            // Log the address and location for debugging
-                            Log.d("Firebase", "Address: $address")
-                            Log.d("Firebase", "Location: ${address?.get("location")}")
-
-                            propertyList.add(property)
-                        }
-                    }
-                    ownerProperties = propertyList
+                .get()
+                .await() // Use await to get the result
+                .documents
+                .map { doc ->
+                    PropertyFormState(
+                        id = doc.id,
+                        propertyType = doc.getString("propertyType") ?: "",
+                        bhk = doc.getString("bhk") ?: "",
+                        buildUpArea = doc.getString("buildUpArea") ?: "",
+                        furnishType = doc.getString("furnishType") ?: "",
+                        monthlyRent = doc.getString("monthlyRent") ?: "",
+                        availableFrom = doc.getString("availableFrom") ?: "",
+                        securityDeposit = doc.getString("securityDeposit") ?: "",
+                        addressLine1 = (doc.get("address") as? Map<*, *>)?.get("addressLine1") as? String ?: "",
+                        addressLine2 = (doc.get("address") as? Map<*, *>)?.get("addressLine2") as? String ?: "",
+                        city = (doc.get("address") as? Map<*, *>)?.get("city") as? String ?: "",
+                        state = (doc.get("address") as? Map<*, *>)?.get("state") as? String ?: "",
+                        pinCode = (doc.get("address") as? Map<*, *>)?.get("pinCode") as? String ?: "",
+                        country = (doc.get("address") as? Map<*, *>)?.get("country") as? String ?: "",
+                        amenities = doc.get("amenities") as? Map<String, List<String>> ?: emptyMap()
+                    )
                 }
         }
     }
@@ -273,13 +257,138 @@ fun RentalAppScreen(
             Text("Add Property")
         }
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(properties) { property ->
+        // Display Owner Properties
+        DisplayOwnerProperties()
+    }
+}
 
+@Composable
+fun DisplayOwnerProperties() {
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val db = FirebaseFirestore.getInstance()
+    var properties by remember { mutableStateOf<List<PropertyFormState>>(emptyList()) }
+
+    // Function to fetch properties from Firestore
+    suspend fun fetchProperties() {
+        if (currentUser != null) {
+            properties = db.collection("properties")
+                .document(currentUser.uid)
+                .collection("ownerProperties")
+                .get()
+                .await() // Await the result
+                .documents
+                .map { doc ->
+                    PropertyFormState(
+                        id = doc.id,
+                        propertyType = doc.getString("propertyType") ?: "",
+                        bhk = doc.getString("bhk") ?: "",
+                        buildUpArea = doc.getString("buildUpArea") ?: "",
+                        furnishType = doc.getString("furnishType") ?: "",
+                        monthlyRent = doc.getString("monthlyRent") ?: "",
+                        availableFrom = doc.getString("availableFrom") ?: "",
+                        securityDeposit = doc.getString("securityDeposit") ?: "",
+                        addressLine1 = (doc.get("address") as? Map<*, *>)?.get("addressLine1") as? String ?: "",
+                        addressLine2 = (doc.get("address") as? Map<*, *>)?.get("addressLine2") as? String ?: "",
+                        city = (doc.get("address") as? Map<*, *>)?.get("city") as? String ?: "",
+                        state = (doc.get("address") as? Map<*, *>)?.get("state") as? String ?: "",
+                        pinCode = (doc.get("address") as? Map<*, *>)?.get("pinCode") as? String ?: "",
+                        country = (doc.get("address") as? Map<*, *>)?.get("country") as? String ?: "",
+                        ownerId = currentUser.uid,
+                        ownerEmail = currentUser.email ?: "",
+                        amenities = doc.get("amenities") as? Map<String, List<String>> ?: emptyMap() // Fetch amenities
+                    )
+                }
+        }
+    }
+
+    // Fetch properties on initial composition
+    LaunchedEffect(Unit) {
+        fetchProperties()
+    }
+
+    // Perform deletion when propertyIdToDelete changes
+    var propertyIdToDelete by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(propertyIdToDelete) {
+        propertyIdToDelete?.let { propertyId ->
+            if (currentUser != null) {
+                try {
+                    db.collection("properties")
+                        .document(currentUser.uid)
+                        .collection("ownerProperties")
+                        .document(propertyId)
+                        .delete()
+                        .await() // Await the deletion
+                    Log.d("Firebase", "Property deleted with ID: $propertyId")
+                    // Fetch updated properties after deletion
+                    fetchProperties()
+                } catch (e: Exception) {
+                    Log.e("Firebase", "Error deleting property", e)
+                }
+            }
+            // Reset the propertyIdToDelete after deletion
+            propertyIdToDelete = null
+        }
+    }
+
+    Column {
+        Text("Your Properties", style = MaterialTheme.typography.headlineMedium)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn {
+            items(properties) { property ->
+                PropertyItem(property) { propertyId ->
+                    // Directly delete the property without confirmation
+                    propertyIdToDelete = propertyId
+                }
             }
         }
+    }
+}
+
+@Composable
+fun PropertyItem(property: PropertyFormState, onDelete: (String) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .border(1.dp, Color.Gray)
+            .padding(16.dp)
+    ) {
+        Text(text = "Property ID: ${property.id}", style = MaterialTheme.typography.bodyLarge)
+        //Text(text = "Name: ${property.name}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Type: ${property.propertyType}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "BHK: ${property.bhk}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Build Up Area: ${property.buildUpArea}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Furnish Type: ${property.furnishType}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Monthly Rent: ${property.monthlyRent}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Available From: ${property.availableFrom}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Security Deposit: ${property.securityDeposit}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Address Line 1: ${property.addressLine1}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Address Line 2: ${property.addressLine2}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "City: ${property.city}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "State: ${property.state}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Pin Code: ${property.pinCode}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Country: ${property.country}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Owner ID: ${property.ownerId}", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Owner Email: ${property.ownerEmail}", style = MaterialTheme.typography.bodyLarge)
+
+        // Display amenities
+        Text(text = "Amenities:", style = MaterialTheme.typography.bodyLarge)
+        property.amenities.forEach { (key, value) ->
+            Text(text = "$key: ${value.joinToString(", ")}", style = MaterialTheme.typography.bodyMedium)
+        }
+
+        // Delete Button
+        Button(
+            onClick = { onDelete(property.id) },
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Text("Delete Property")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -1089,6 +1198,31 @@ fun Amenities(navController: NavController, propertyFormState: PropertyFormState
 
 }
 
+@Composable
+fun ConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirm Deletion") },
+        text = { Text("Are you sure you want to delete this property?") },
+        confirmButton = {
+            Button(onClick = {
+                onConfirm() // Call the confirm function
+                onDismiss() // Dismiss the dialog
+            }) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
 //@Composable
 //fun Address(navController: NavController, bhk: String) {
 //    Column(
@@ -1221,3 +1355,4 @@ fun Amenities(navController: NavController, propertyFormState: PropertyFormState
 //    }
 //
 //}
+
