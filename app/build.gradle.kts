@@ -84,6 +84,11 @@ dependencies {
     implementation ("androidx.compose.ui:ui-test-junit4:1.2.1")
     implementation ("com.google.code.gson:gson:2.10")
     implementation ("com.google.firebase:firebase-firestore-ktx:24.10.2")
+    // ... existing dependencies ...
+
+    implementation ("com.google.android.gms:play-services-location:21.2.0")
+
+// ... existing dependencies ...
 
     implementation (platform("com.google.firebase:firebase-bom:32.7.2"))
         implementation ("com.google.firebase:firebase-firestore-ktx")
