@@ -122,8 +122,17 @@ dependencies {
 
 
 //
-        implementation ("com.google.android.libraries.places:places:2.5.0")
-        implementation ("androidx.compose.ui:ui:1.0.5")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4")
+    implementation ("com.google.android.libraries.places:places:2.6.0")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+
+        implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
+        implementation ("com.google.android.libraries.places:places:3.3.0")
+
+
+
+    implementation ("androidx.compose.ui:ui:1.0.5")
         implementation ("androidx.compose.material:material:1.0.5")
         implementation ("androidx.compose.ui:ui-tooling-preview:1.0.5")
         implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.3.1")
