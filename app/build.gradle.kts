@@ -117,7 +117,7 @@ dependencies {
 
     // Declare the dependency for the Cloud Firestore library
     // When using the BoM, you don't specify versions in Firebase library dependencies
-    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-firestore:25.1.1")
 
 
     implementation ("androidx.activity:activity-ktx:1.8.0")
